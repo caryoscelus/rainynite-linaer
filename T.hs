@@ -26,7 +26,7 @@
   #-}
 
 
-module Main where
+module T where
 
 import Debug.Trace (traceShowId)
 import Data.Maybe
@@ -41,16 +41,8 @@ import Data.Label.Derive
 
 import GL
 import Util
+import Strokes
 
-type Coord = Integer
-type Point = V2 Coord
-
-data Stroke = Stroke
-  { sZoom :: Int
-  , sPoints :: [Point]
-  }
-
-type Picture = [Stroke]
 
 toTriangles :: Int -> Picture -> [V2 Float]
 toTriangles zoom = foldr addStroke []
@@ -151,8 +143,8 @@ screenToGl w h x y = V2
   (- fromIntegral w `div` 2 + floor x)
   (fromIntegral h `div` 2 - floor y)
 
-main :: IO ()
-main = runContextT GLFW.defaultHandleConfig $ do
+everything :: IO ()
+everything = runContextT GLFW.defaultHandleConfig $ do
   let nFrames = defaultFrameCount
 
   app <- liftIO $ newIORef (emptyApp nFrames)
