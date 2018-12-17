@@ -191,13 +191,17 @@ main = runContextT GLFW.defaultHandleConfig $ do
   GLFW.setKeyCallback win . pure $ \key i state mods -> do
     when (state /= GLFW.KeyState'Released) $ do
       modifyIORef app requestClearTexture
-      -- case key of
-        -- GLFW.Key'Equal -> modifyIORef zoomLevel succ
-        -- GLFW.Key'Minus -> modifyIORef zoomLevel pred
-        -- GLFW.Key'Left -> modifyIORef nowFrame ((`mod` frameCount) . pred)
-        -- GLFW.Key'Right -> modifyIORef nowFrame ((`mod` frameCount) . succ)
+      case key of
+        GLFW.Key'Equal -> modifyIORef app (modify zoomLevel succ)
+        GLFW.Key'Minus -> modifyIORef app (modify zoomLevel pred)
+        GLFW.Key'Left -> do
+          nFrames <- get frameCount <$> readIORef app
+          modifyIORef app $ modify nowFrame ((`mod` nFrames) . pred)
+        GLFW.Key'Right -> do
+          nFrames <- get frameCount <$> readIORef app
+          modifyIORef app $ modify nowFrame ((`mod` nFrames) . succ)
         -- GLFW.Key'Z -> modifyIORef shapes (drop 1)
-        -- _ -> pure ()
+        _ -> pure ()
 
   wholeScreenBuff :: Buffer os (B2 Float) <- newBuffer 4
   writeBuffer wholeScreenBuff 0
