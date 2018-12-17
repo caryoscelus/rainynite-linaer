@@ -143,6 +143,31 @@ screenToGl w h x y = V2
   (- fromIntegral w `div` 2 + floor x)
   (fromIntegral h `div` 2 - floor y)
 
+cursorCallback app x y = do
+  liftIO $ modifyIORef app (set cursor (screenToGl wh wh x y))
+  draw <- liftIO $ get isDrawing <$> readIORef app
+  when draw $ modifyIORef app appendShape
+
+keyCallback app key i state mods = do
+  when (state /= GLFW.KeyState'Released) $ do
+    modifyIORef app requestClearTexture
+    case key of
+      GLFW.Key'Equal -> modifyIORef app (modify zoomLevel succ)
+      GLFW.Key'Minus -> modifyIORef app (modify zoomLevel pred)
+      GLFW.Key'Left -> do
+        nFrames <- get frameCount <$> readIORef app
+        modifyIORef app $ modify nowFrame ((`mod` nFrames) . pred)
+      GLFW.Key'Right -> do
+        nFrames <- get frameCount <$> readIORef app
+        modifyIORef app $ modify nowFrame ((`mod` nFrames) . succ)
+      _ -> pure ()
+
+mouseCallback app button state mods = do
+  let
+    pressed = state == GLFW.MouseButtonState'Pressed
+  liftIO $ modifyIORef app (set isDrawing pressed)
+  when pressed $ modifyIORef app newShape
+
 everything :: IO ()
 everything = runContextT GLFW.defaultHandleConfig $ do
   let nFrames = defaultFrameCount
@@ -169,33 +194,10 @@ everything = runContextT GLFW.defaultHandleConfig $ do
   brushTexShader <- compileShader (singleColorOnTextureShader wh wh)
   texShader <- compileShader (singleTextureOnWindowShader win wh wh)
 
-  GLFW.setMouseButtonCallback win . pure $ \button state mods -> do
-    let
-      pressed = state == GLFW.MouseButtonState'Pressed
-    liftIO $ modifyIORef app (set isDrawing pressed)
-    when pressed $ modifyIORef app newShape
-
-
-  GLFW.setCursorPosCallback win . pure $ \x y -> do
-    liftIO $ modifyIORef app (set cursor (screenToGl wh wh x y))
-    draw <- liftIO $ get isDrawing <$> readIORef app
-    when draw $ modifyIORef app appendShape
-
-  GLFW.setKeyCallback win . pure $ \key i state mods -> do
-    when (state /= GLFW.KeyState'Released) $ do
-      modifyIORef app requestClearTexture
-      case key of
-        GLFW.Key'Equal -> modifyIORef app (modify zoomLevel succ)
-        GLFW.Key'Minus -> modifyIORef app (modify zoomLevel pred)
-        GLFW.Key'Left -> do
-          nFrames <- get frameCount <$> readIORef app
-          modifyIORef app $ modify nowFrame ((`mod` nFrames) . pred)
-        GLFW.Key'Right -> do
-          nFrames <- get frameCount <$> readIORef app
-          modifyIORef app $ modify nowFrame ((`mod` nFrames) . succ)
-        -- GLFW.Key'Z -> modifyIORef shapes (drop 1)
-        _ -> pure ()
-
+  GLFW.setMouseButtonCallback win $ pure (mouseCallback app)
+  GLFW.setCursorPosCallback win $ pure (cursorCallback app)
+  GLFW.setKeyCallback win $ pure (keyCallback app)
+  
   wholeScreenBuff :: Buffer os (B2 Float) <- newBuffer 4
   writeBuffer wholeScreenBuff 0
     [ V2   0    0
