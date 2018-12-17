@@ -162,14 +162,8 @@ keyCallback app key i state mods = do
         modifyIORef app $ modify nowFrame ((`mod` nFrames) . succ)
       _ -> pure ()
 
-mouseCallback app button state mods = do
-  let
-    pressed = state == GLFW.MouseButtonState'Pressed
-  liftIO $ modifyIORef app (set isDrawing pressed)
-  when pressed $ modifyIORef app newShape
-
-everything :: IO ()
-everything = runContextT GLFW.defaultHandleConfig $ do
+-- everything :: IO ()
+everything mouseCallback = runContextT GLFW.defaultHandleConfig $ do
   let nFrames = defaultFrameCount
 
   app <- liftIO $ newIORef (emptyApp nFrames)
@@ -194,7 +188,8 @@ everything = runContextT GLFW.defaultHandleConfig $ do
   brushTexShader <- compileShader (singleColorOnTextureShader wh wh)
   texShader <- compileShader (singleTextureOnWindowShader win wh wh)
 
-  GLFW.setMouseButtonCallback win $ pure (mouseCallback app)
+  GLFW.setMouseButtonCallback win . pure $ \x y -> do
+    mouseCallback (modifyIORef app) x y
   GLFW.setCursorPosCallback win $ pure (cursorCallback app)
   GLFW.setKeyCallback win $ pure (keyCallback app)
   
