@@ -17,6 +17,7 @@
 
 {-# LANGUAGE
   NoMonomorphismRestriction,
+  TemplateHaskell,
   ScopedTypeVariables,
   TypeFamilies,
   LambdaCase,
@@ -35,6 +36,8 @@ import qualified Graphics.GPipe.Context.GLFW as GLFW
 import Data.IORef
 import Control.Monad.IO.Class
 import Control.Monad
+import Data.Label
+import Data.Label.Derive
 
 import GL
 import Util
@@ -85,69 +88,62 @@ wh = 512
 
 
 data DrawApp = DrawApp
-  { frameCount :: Int
-  , nowFrame :: Int
-  , frames :: [Picture]
+  { _frameCount :: Int
+  , _nowFrame :: Int
+  , _frames :: [Picture]
   
-  , cursor :: V2 Int
-  , isDrawing :: Bool
+  , _cursor :: V2 Int
+  , _isDrawing :: Bool
       
-  , zoomLevel :: Int
+  , _zoomLevel :: Int
   
-  , needToClearTexture :: Bool
+  , _needToClearTexture :: Bool
   }
 
+mkLabel ''DrawApp
 
 emptyApp :: Int -> DrawApp
 emptyApp nFrames = DrawApp
-  { frameCount = nFrames
-  , nowFrame = 0
-  , frames = replicate nFrames []
+  { _frameCount = nFrames
+  , _nowFrame = 0
+  , _frames = replicate nFrames []
 
-  , cursor = V2 0 0
-  , isDrawing = False
+  , _cursor = V2 0 0
+  , _isDrawing = False
 
-  , zoomLevel = 0
+  , _zoomLevel = 0
 
-  , needToClearTexture = True
+  , _needToClearTexture = True
   }
 
 defaultFrameCount = 24
 defaultEmptyApp = emptyApp defaultFrameCount
 
--- TODO: use some lens
 requestClearTexture :: DrawApp -> DrawApp
-requestClearTexture app = app { needToClearTexture = True }
+requestClearTexture = set needToClearTexture True
 
 clearedTexture :: DrawApp -> DrawApp
-clearedTexture app = app { needToClearTexture = False }
+clearedTexture = set needToClearTexture False
 
 newShape :: DrawApp -> DrawApp
 newShape app =
   let
-    zl = zoomLevel app
-    fi = nowFrame app
+    zl = get zoomLevel app
+    fi = get nowFrame app
   in
-    app { frames = modifyAt fi (Stroke zl [] :) (frames app) }
+    modify frames (modifyAt fi (Stroke zl [] :)) app
 
 
 appendShape :: DrawApp -> DrawApp
 appendShape app =
   let
-    xy = cursor app
-    fi = nowFrame app
+    xy = get cursor app
+    fi = get nowFrame app
   in
-    app {
-      frames = modifyAt fi
-        (\(Stroke z ss : shapes) -> Stroke z (xy:ss) : shapes)
-        (frames app)
-    }
-
-setIsDrawing :: Bool -> DrawApp -> DrawApp
-setIsDrawing d app = app { isDrawing = d }
-
-setCursor :: V2 Int -> DrawApp -> DrawApp
-setCursor xy app = app { cursor = xy }
+    modify frames
+      (modifyAt fi
+       (\(Stroke z ss : shapes) -> Stroke z (xy:ss) : shapes))
+      app
 
 screenToGl :: Int -> Int -> Double -> Double -> V2 Int
 screenToGl w h x y = V2
@@ -183,13 +179,13 @@ main = runContextT GLFW.defaultHandleConfig $ do
   GLFW.setMouseButtonCallback win . pure $ \button state mods -> do
     let
       pressed = state == GLFW.MouseButtonState'Pressed
-    liftIO $ modifyIORef app (setIsDrawing pressed)
+    liftIO $ modifyIORef app (set isDrawing pressed)
     when pressed $ modifyIORef app newShape
 
 
   GLFW.setCursorPosCallback win . pure $ \x y -> do
-    liftIO $ modifyIORef app (setCursor (screenToGl wh wh x y))
-    draw <- liftIO $ isDrawing <$> readIORef app
+    liftIO $ modifyIORef app (set cursor (screenToGl wh wh x y))
+    draw <- liftIO $ get isDrawing <$> readIORef app
     when draw $ modifyIORef app appendShape
 
   GLFW.setKeyCallback win . pure $ \key i state mods -> do
@@ -212,10 +208,10 @@ main = runContextT GLFW.defaultHandleConfig $ do
     ]
 
   foreverTil (fromMaybe False <$> GLFW.windowShouldClose win) $ do
-    fi <- liftIO $ nowFrame <$> readIORef app
-    picture <- fmap (!! fi) . liftIO $ frames <$> readIORef app
-    zl <- liftIO $ zoomLevel <$> readIORef app
-    haveToClear <- liftIO $ needToClearTexture <$> readIORef app
+    fi <- liftIO $ get nowFrame <$> readIORef app
+    picture <- fmap (!! fi) . liftIO $ get frames <$> readIORef app
+    zl <- liftIO $ get zoomLevel <$> readIORef app
+    haveToClear <- liftIO $ get needToClearTexture <$> readIORef app
 
     let nowTex = frameTextures !! fi
 
