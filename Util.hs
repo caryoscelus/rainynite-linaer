@@ -37,3 +37,6 @@ foreverTil cond m = do
 
 modifyAt :: Int -> (a -> a) -> [a] -> [a]
 modifyAt n f l = take n l <> [f (l !! n)] <> drop (n + 1) l
+
+when' :: Bool -> (a -> a) -> (a -> a)
+when' c f = if c then f else id
