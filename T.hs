@@ -37,15 +37,7 @@ import Control.Monad.IO.Class
 import Control.Monad
 
 import GL
-
-foreverTil :: Monad m => m Bool -> m a -> m a
-foreverTil cond m = do
-  r <- m
-  e <- cond
-  if not e then
-    foreverTil cond m
-  else
-    pure r
+import Util
 
 type Point = V2 Int
 
@@ -90,10 +82,6 @@ v2to4 :: Num i => V2 i -> V4 i
 v2to4 (V2 x y) = V4 x y 0 1
 
 wh = 512
-
-
-modifyAt :: Int -> (a -> a) -> [a] -> [a]
-modifyAt n f l = take n l <> [f (l !! n)] <> drop (n + 1) l
 
 main :: IO ()
 main = runContextT GLFW.defaultHandleConfig $ do
