@@ -139,26 +139,8 @@ main = runContextT GLFW.defaultHandleConfig $ do
     bgColor  = V3 0.0 0.0 0.0
     allColors = V3 True True True
 
-
   brushTexShader <- compileShader (singleColorOnTextureShader wh wh)
-
--- {-
-  texShader <- compileShader $ do
-    let
-      filter = SamplerFilter Linear Linear Nearest Nothing
-      edge = (pure ClampToEdge, 0)
-    primStream <- toPrimitiveStream screenArea
-    fragments <- rasterize
-      (const (FrontAndBack, ViewPort (V2 0 0) (V2 wh wh), DepthRange 0 1))
-      (fmap (\(V2 x y) -> (V4 (x*2-1) (y*2-1) 0 1, V2 x y)) primStream)
-    samp <- newSampler2D (\s -> (screenTex s, filter, edge))
-    let
-      sampleTexture = sample2D samp SampleAuto Nothing Nothing
-      fragments' = fmap sampleTexture fragments
-    drawWindowColor
-      (const (win, ContextColorOption NoBlending (pure True))) fragments'
--- -}
-
+  texShader <- compileShader (singleTextureOnWindowShader win wh wh)
 
   GLFW.setMouseButtonCallback win . pure $ \button state mods -> do
     let
@@ -209,19 +191,21 @@ main = runContextT GLFW.defaultHandleConfig $ do
     unless (lines == []) $
       writeBuffer lineBuff 0 (fmap (\xy -> (v2to4 xy , penColor)) lines)
 
+    -- render frame to texture
+    -- TODO: don't re-render when not needed
     render $ do
       vertexArray <- newVertexArray lineBuff
       let brushTriangles = toPrimitiveArray TriangleList vertexArray
       img <- getTexture2DImage nowTex 0
       brushTexShader (OnTexture img brushTriangles)
 
--- {-
+    -- put that onto window
     render $ do
       clearWindowColor win bgColor
       wholeScreen <- newVertexArray wholeScreenBuff
       let wholeScreenTriangles = toPrimitiveArray TriangleFan wholeScreen
       texShader (RenderTexture wholeScreenTriangles nowTex)
--- -}
+
     swapWindowBuffers win
 
     pure ()

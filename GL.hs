@@ -1,4 +1,4 @@
-{-- GL.hs - some imperative opengl mess
+{-- GL.hs - some semi-imperative opengl mess
  -- Copyright (C) 2018 caryoscelus
  --
  -- This program is free software: you can redistribute it and/or modify
@@ -55,3 +55,24 @@ singleColorOnTextureShader w h = do
     drawColor
       (\s -> (targetTexture s, (V3 True True True), False))
       color
+
+singleTextureOnWindowShader
+  :: Window os RGBFloat ds
+  -> Int -> Int
+  -> Shader os
+    (RenderTexture os RGBFloat Triangles (B2 Float))
+    ()
+singleTextureOnWindowShader win w h = do
+    let
+      filter = SamplerFilter Linear Linear Nearest Nothing
+      edge = (pure ClampToEdge, 0)
+    primStream <- toPrimitiveStream screenArea
+    fragments <- rasterize
+      (const (FrontAndBack, ViewPort (V2 0 0) (V2 w h), DepthRange 0 1))
+      (fmap (\(V2 x y) -> (V4 (x*2-1) (y*2-1) 0 1, V2 x y)) primStream)
+    samp <- newSampler2D (\s -> (screenTex s, filter, edge))
+    let
+      sampleTexture = sample2D samp SampleAuto Nothing Nothing
+      fragments' = fmap sampleTexture fragments
+    drawWindowColor
+      (const (win, ContextColorOption NoBlending (pure True))) fragments'
