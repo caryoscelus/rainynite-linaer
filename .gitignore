@@ -1,6 +1,16 @@
+# backups
 *~
+
+# haskell
 *.hi
 *.o
 *.dyn_hi
 *.dyn_o
+
+# binaries
 t
+test
+
+# agda
+*.agdai
+MAlonzo/
