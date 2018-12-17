@@ -83,40 +83,90 @@ v2to4 (V2 x y) = V4 x y 0 1
 
 wh = 512
 
+
+data DrawApp = DrawApp
+  { frameCount :: Int
+  , nowFrame :: Int
+  , frames :: [Picture]
+  
+  , cursor :: V2 Int
+  , isDrawing :: Bool
+      
+  , zoomLevel :: Int
+  
+  , needToClearTexture :: Bool
+  }
+
+
+emptyApp :: Int -> DrawApp
+emptyApp nFrames = DrawApp
+  { frameCount = nFrames
+  , nowFrame = 0
+  , frames = replicate nFrames []
+
+  , cursor = V2 0 0
+  , isDrawing = False
+
+  , zoomLevel = 0
+
+  , needToClearTexture = True
+  }
+
+defaultFrameCount = 24
+defaultEmptyApp = emptyApp defaultFrameCount
+
+-- TODO: use some lens
+requestClearTexture :: DrawApp -> DrawApp
+requestClearTexture app = app { needToClearTexture = True }
+
+clearedTexture :: DrawApp -> DrawApp
+clearedTexture app = app { needToClearTexture = False }
+
+newShape :: DrawApp -> DrawApp
+newShape app =
+  let
+    zl = zoomLevel app
+    fi = nowFrame app
+  in
+    app { frames = modifyAt fi (Stroke zl [] :) (frames app) }
+
+
+appendShape :: DrawApp -> DrawApp
+appendShape app =
+  let
+    xy = cursor app
+    fi = nowFrame app
+  in
+    app {
+      frames = modifyAt fi
+        (\(Stroke z ss : shapes) -> Stroke z (xy:ss) : shapes)
+        (frames app)
+    }
+
+setIsDrawing :: Bool -> DrawApp -> DrawApp
+setIsDrawing d app = app { isDrawing = d }
+
+setCursor :: V2 Int -> DrawApp -> DrawApp
+setCursor xy app = app { cursor = xy }
+
+screenToGl :: Int -> Int -> Double -> Double -> V2 Int
+screenToGl w h x y = V2
+  (- w `div` 2 + floor x)
+  (h `div` 2 - floor y)
+
 main :: IO ()
 main = runContextT GLFW.defaultHandleConfig $ do
+  let nFrames = defaultFrameCount
 
-  let
-    frameCount = 24
-
-  
-  isDrawing <- liftIO $ newIORef False
-  coords <- liftIO $ newIORef (V2 0 0)
-  shapes <- liftIO $ newIORef (replicate frameCount [])
-  zoomLevel <- liftIO $ newIORef 0
-  requestClearTex <- liftIO $ newIORef True
-  nowFrame <- liftIO $ newIORef 0
-
+  app <- liftIO $ newIORef (emptyApp nFrames)
 
   frameTextures <-
-    sequence . replicate frameCount $ newTexture2D RGB8 (V2 wh wh) 1
+    sequence . replicate nFrames $ newTexture2D RGB8 (V2 wh wh) 1
 
   let
     void = minBound :: Word32
     clearTex t = do
       writeTexture2D t 0 0 (V2 wh wh) (repeat (V3 void void void))
-
-  let
-    newShape = do
-      zl <- readIORef zoomLevel
-      fi <- readIORef nowFrame
-      modifyIORef shapes (modifyAt fi (Stroke zl [] :))
-
-    appendShape = do
-      xy <- readIORef coords
-      fi <- readIORef nowFrame
-      modifyIORef shapes . modifyAt fi $ \(Stroke z ss : shapes) ->
-        Stroke z (xy:ss) : shapes
   
   let wCfg = (GLFW.defaultWindowConfig "rainynite-linaer")
         { GLFW.configWidth = wh , GLFW.configHeight = wh }
@@ -133,25 +183,25 @@ main = runContextT GLFW.defaultHandleConfig $ do
   GLFW.setMouseButtonCallback win . pure $ \button state mods -> do
     let
       pressed = state == GLFW.MouseButtonState'Pressed
-    liftIO $ writeIORef isDrawing pressed
-    when pressed $ newShape
+    liftIO $ modifyIORef app (setIsDrawing pressed)
+    when pressed $ modifyIORef app newShape
+
 
   GLFW.setCursorPosCallback win . pure $ \x y -> do
-    liftIO $ writeIORef coords (V2 (- wh `div` 2 + floor x) (wh `div` 2 - floor y))
-    draw <- liftIO $ readIORef isDrawing
-    when draw $ do
-      appendShape
+    liftIO $ modifyIORef app (setCursor (screenToGl wh wh x y))
+    draw <- liftIO $ isDrawing <$> readIORef app
+    when draw $ modifyIORef app appendShape
 
   GLFW.setKeyCallback win . pure $ \key i state mods -> do
     when (state /= GLFW.KeyState'Released) $ do
-      writeIORef requestClearTex True
-      case key of
-        GLFW.Key'Equal -> modifyIORef zoomLevel succ
-        GLFW.Key'Minus -> modifyIORef zoomLevel pred
-        GLFW.Key'Left -> modifyIORef nowFrame ((`mod` frameCount) . pred)
-        GLFW.Key'Right -> modifyIORef nowFrame ((`mod` frameCount) . succ)
-        GLFW.Key'Z -> modifyIORef shapes (drop 1)
-        _ -> pure ()
+      modifyIORef app requestClearTexture
+      -- case key of
+        -- GLFW.Key'Equal -> modifyIORef zoomLevel succ
+        -- GLFW.Key'Minus -> modifyIORef zoomLevel pred
+        -- GLFW.Key'Left -> modifyIORef nowFrame ((`mod` frameCount) . pred)
+        -- GLFW.Key'Right -> modifyIORef nowFrame ((`mod` frameCount) . succ)
+        -- GLFW.Key'Z -> modifyIORef shapes (drop 1)
+        -- _ -> pure ()
 
   wholeScreenBuff :: Buffer os (B2 Float) <- newBuffer 4
   writeBuffer wholeScreenBuff 0
@@ -162,15 +212,15 @@ main = runContextT GLFW.defaultHandleConfig $ do
     ]
 
   foreverTil (fromMaybe False <$> GLFW.windowShouldClose win) $ do
-    fi <- liftIO $ readIORef nowFrame
-    picture <- fmap (!! fi) . liftIO $ readIORef shapes
-    zl <- liftIO $ readIORef zoomLevel
-    haveToClear <- liftIO $ readIORef requestClearTex
+    fi <- liftIO $ nowFrame <$> readIORef app
+    picture <- fmap (!! fi) . liftIO $ frames <$> readIORef app
+    zl <- liftIO $ zoomLevel <$> readIORef app
+    haveToClear <- liftIO $ needToClearTexture <$> readIORef app
 
     let nowTex = frameTextures !! fi
 
     when haveToClear $ clearTex nowTex
-    liftIO $ writeIORef requestClearTex False
+    liftIO $ modifyIORef app clearedTexture
 
     let
       lines = toTriangles (zl - 256) picture
