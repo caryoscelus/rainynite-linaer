@@ -36,6 +36,7 @@ import qualified Graphics.GPipe.Context.GLFW as GLFW
 import Data.IORef
 import Control.Monad.IO.Class
 import Control.Monad
+import Control.Category ((>>>))
 import Data.Label
 import Data.Label.Derive
 
@@ -143,11 +144,6 @@ screenToGl w h x y = V2
   (- fromIntegral w `div` 2 + floor x)
   (fromIntegral h `div` 2 - floor y)
 
-cursorCallback app x y = do
-  liftIO $ modifyIORef app (set cursor (screenToGl wh wh x y))
-  draw <- liftIO $ get isDrawing <$> readIORef app
-  when draw $ modifyIORef app appendShape
-
 keyCallback app key i state mods = do
   when (state /= GLFW.KeyState'Released) $ do
     modifyIORef app requestClearTexture
@@ -162,8 +158,9 @@ keyCallback app key i state mods = do
         modifyIORef app $ modify nowFrame ((`mod` nFrames) . succ)
       _ -> pure ()
 
--- everything :: IO ()
-everything mouseCallback = runContextT GLFW.defaultHandleConfig $ do
+
+everything mouseCallback cursorCallback
+  = runContextT GLFW.defaultHandleConfig $ do
   let nFrames = defaultFrameCount
 
   app <- liftIO $ newIORef (emptyApp nFrames)
@@ -188,9 +185,10 @@ everything mouseCallback = runContextT GLFW.defaultHandleConfig $ do
   brushTexShader <- compileShader (singleColorOnTextureShader wh wh)
   texShader <- compileShader (singleTextureOnWindowShader win wh wh)
 
-  GLFW.setMouseButtonCallback win . pure $ \x y -> do
-    mouseCallback (modifyIORef app) x y
-  GLFW.setCursorPosCallback win $ pure (cursorCallback app)
+  GLFW.setMouseButtonCallback win . pure $
+    mouseCallback (modifyIORef app)
+  GLFW.setCursorPosCallback win . pure $
+    cursorCallback (modifyIORef app)
   GLFW.setKeyCallback win $ pure (keyCallback app)
   
   wholeScreenBuff :: Buffer os (B2 Float) <- newBuffer 4

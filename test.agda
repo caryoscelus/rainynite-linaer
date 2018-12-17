@@ -11,6 +11,8 @@ open import Function
 
 {-# FOREIGN GHC
   import T
+  import Strokes
+  import Linear.V2
   #-}
 
 module fclabels where
@@ -44,13 +46,26 @@ module GLFW where
   {-# COMPILE GHC _==_ = (==) #-}
 
 postulate
+  Double Int Coord : Set
+  V2 : Set → Set
+
+{-# COMPILE GHC Double = type Double #-}
+{-# COMPILE GHC Int = type Int #-}
+{-# COMPILE GHC V2 = type V2 #-}
+{-# COMPILE GHC Coord = type Coord #-}
+
+postulate
   DrawApp : Set
   isDrawing : DrawApp ፦ Bool
+  cursor : DrawApp ፦ V2 Coord
   newShape : DrawApp → DrawApp
+  appendShape : DrawApp → DrawApp
 
 {-# COMPILE GHC DrawApp = type DrawApp #-}
 {-# COMPILE GHC isDrawing = isDrawing #-}
+{-# COMPILE GHC cursor = cursor #-}
 {-# COMPILE GHC newShape = newShape #-}
+{-# COMPILE GHC appendShape = appendShape #-}
 
 MouseCallback : {M : Set} → Set
 MouseCallback {M} =
@@ -60,12 +75,23 @@ MouseCallback {M} =
   (mods : GLFW.ModifierKeys)
   → M
 
-postulate
-  everything : MouseCallback {Prim.IO ⊤} → Prim.IO ⊤
+CursorCallback : {M : Set} → Set
+CursorCallback {M} =
+  (modApp : (DrawApp → DrawApp) → M)
+  (x y : Double)
+  → M
 
-{-# COMPILE GHC
-    everything = T.everything 
-  #-}
+postulate
+  everything :
+    MouseCallback {Prim.IO ⊤} →
+    CursorCallback {Prim.IO ⊤} →
+    Prim.IO ⊤
+  screenToGl : (w h : Int) (x y : Double) -> V2 Coord
+  wh : Int
+
+{-# COMPILE GHC everything = everything #-}
+{-# COMPILE GHC screenToGl = screenToGl #-}
+{-# COMPILE GHC wh = wh #-}
 
 _⟫_ : ∀ {ℓ} {A B C : Set ℓ} (F : A → B) (G : B → C) → (A → C)
 _⟫_ = flip _∘′_
@@ -81,8 +107,23 @@ mouseCallback modApp button state mods =
   in
     modApp (set isDrawing pressed ⟫ when′ pressed newShape)
 
+{-
+screenToGl : (w h : Int) (x y : Double) -> V2 Coord
+screenToGl w h x y = V2
+  (- fromIntegral w div 2 + floor x)
+  (fromIntegral h div 2 - floor y)
+-}
+
+cursorCallback : ∀ {M} → CursorCallback {M}
+cursorCallback modApp x y = modApp $
+  set cursor (screenToGl wh wh x y) ⟫ λ app →
+  let
+    draw = get isDrawing app
+  in
+    when′ draw appendShape app
+
 
 main = run $ do
-  lift $ everything mouseCallback
+  lift $ everything mouseCallback cursorCallback
   where
     open IO
