@@ -36,6 +36,8 @@ import Data.IORef
 import Control.Monad.IO.Class
 import Control.Monad
 
+import GL
+
 foreverTil :: Monad m => m Bool -> m a -> m a
 foreverTil cond m = do
   r <- m
@@ -90,16 +92,6 @@ v2to4 (V2 x y) = V4 x y 0 1
 wh = 512
 
 
-data ShaderData c p a = ShaderData
-  { sdPoints :: PrimitiveArray p a
-  , sdTexture :: Image (Format c)
-  }
-
-data TexData os c p a = TexData
-  { screenArea :: PrimitiveArray p a
-  , screenTex :: Texture2D os (Format c)
-  }
-
 modifyAt :: Int -> (a -> a) -> [a] -> [a]
 modifyAt n f l = take n l <> [f (l !! n)] <> drop (n + 1) l
 
@@ -148,16 +140,7 @@ main = runContextT GLFW.defaultHandleConfig $ do
     allColors = V3 True True True
 
 
-  
--- {-
-  brushTexShader <- compileShader $
-    pure sdPoints
-    >>= toPrimitiveStream
-    >>= rasterize
-      (const (FrontAndBack, ViewPort (V2 0 0) (V2 wh wh), DepthRange 0 1))
-    >>= \a ->
-      draw (const NoBlending) a $ \v3 -> drawColor (\s -> (sdTexture s, (V3 True True True), False)) v3
--- -}
+  brushTexShader <- compileShader (singleColorOnTextureShader wh wh)
 
 -- {-
   texShader <- compileShader $ do
@@ -230,14 +213,14 @@ main = runContextT GLFW.defaultHandleConfig $ do
       vertexArray <- newVertexArray lineBuff
       let brushTriangles = toPrimitiveArray TriangleList vertexArray
       img <- getTexture2DImage nowTex 0
-      brushTexShader (ShaderData brushTriangles img)
+      brushTexShader (OnTexture img brushTriangles)
 
 -- {-
     render $ do
       clearWindowColor win bgColor
       wholeScreen <- newVertexArray wholeScreenBuff
       let wholeScreenTriangles = toPrimitiveArray TriangleFan wholeScreen
-      texShader (TexData wholeScreenTriangles nowTex)
+      texShader (RenderTexture wholeScreenTriangles nowTex)
 -- -}
     swapWindowBuffers win
 
