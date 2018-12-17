@@ -42,7 +42,8 @@ import Data.Label.Derive
 import GL
 import Util
 
-type Point = V2 Int
+type Coord = Integer
+type Point = V2 Coord
 
 data Stroke = Stroke
   { sZoom :: Int
@@ -92,7 +93,7 @@ data DrawApp = DrawApp
   , _nowFrame :: Int
   , _frames :: [Picture]
   
-  , _cursor :: V2 Int
+  , _cursor :: V2 Coord
   , _isDrawing :: Bool
       
   , _zoomLevel :: Int
@@ -145,10 +146,10 @@ appendShape app =
        (\(Stroke z ss : shapes) -> Stroke z (xy:ss) : shapes))
       app
 
-screenToGl :: Int -> Int -> Double -> Double -> V2 Int
+screenToGl :: Int -> Int -> Double -> Double -> V2 Coord
 screenToGl w h x y = V2
-  (- w `div` 2 + floor x)
-  (h `div` 2 - floor y)
+  (- fromIntegral w `div` 2 + floor x)
+  (fromIntegral h `div` 2 - floor y)
 
 main :: IO ()
 main = runContextT GLFW.defaultHandleConfig $ do
