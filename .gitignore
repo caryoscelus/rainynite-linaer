@@ -1,5 +1,7 @@
 # backups
 *~
+\#*\#
+.\#*
 
 # haskell
 *.hi
@@ -10,6 +12,7 @@
 # binaries
 t
 test
+colors
 
 # agda
 *.agdai
