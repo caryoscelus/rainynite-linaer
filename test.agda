@@ -26,6 +26,7 @@ import IO
 
 open import Function
 
+open import Hask
 open import FCLabels
 import GLFW
 
@@ -36,11 +37,9 @@ import GLFW
   #-}
 
 postulate
-  Double Int Coord : Set
+  Coord : Set
   V2 : Set → Set
 
-{-# COMPILE GHC Double = type Double #-}
-{-# COMPILE GHC Int = type Int #-}
 {-# COMPILE GHC V2 = type V2 #-}
 {-# COMPILE GHC Coord = type Coord #-}
 
@@ -57,24 +56,11 @@ postulate
 {-# COMPILE GHC newShape = newShape #-}
 {-# COMPILE GHC appendShape = appendShape #-}
 
-MouseCallback : {M : Set} → Set
-MouseCallback {M} =
-  (modApp : (DrawApp → DrawApp) → M)
-  (button : GLFW.MouseButton)
-  (state : GLFW.MouseButtonState)
-  (mods : GLFW.ModifierKeys)
-  → M
-
-CursorCallback : {M : Set} → Set
-CursorCallback {M} =
-  (modApp : (DrawApp → DrawApp) → M)
-  (x y : Double)
-  → M
 
 postulate
   everything :
-    MouseCallback {Prim.IO ⊤} →
-    CursorCallback {Prim.IO ⊤} →
+    GLFW.MouseCallback′ {Prim.IO ⊤} DrawApp →
+    GLFW.CursorCallback′ {Prim.IO ⊤} DrawApp →
     Prim.IO ⊤
   screenToGl : (w h : Int) (x y : Double) -> V2 Coord
   wh : Int
@@ -90,29 +76,24 @@ when′ : ∀ {ℓ} {A : Set ℓ} (cond : Bool) → (A → A) → (A → A)
 when′ false _ = id
 when′ true f = f
 
-mouseCallback : ∀ {M} → MouseCallback {M}
-mouseCallback modApp button state mods =
+mouseCallback : GLFW.MouseCallback DrawApp
+mouseCallback app button state mods =
   let
     pressed = state GLFW.== GLFW.MouseButtonState'Pressed
   in
-    modApp (set isDrawing pressed ⟫ when′ pressed newShape)
+    (set isDrawing pressed ⟫ when′ pressed newShape) app
 
-{-
-screenToGl : (w h : Int) (x y : Double) -> V2 Coord
-screenToGl w h x y = V2
-  (- fromIntegral w div 2 + floor x)
-  (fromIntegral h div 2 - floor y)
--}
-
-cursorCallback : ∀ {M} → CursorCallback {M}
-cursorCallback modApp x y = modApp $
-  set cursor (screenToGl wh wh x y) ⟫ λ app →
+cursorCallback : GLFW.CursorCallback DrawApp
+cursorCallback app x y =
+  (set cursor (screenToGl wh wh x y) ⟫ λ app →
   let
     draw = get isDrawing app
   in
-    when′ draw appendShape app
+    when′ draw appendShape app) app
 
 main = run $ do
-  lift $ everything mouseCallback cursorCallback
+  lift $ everything
+    (GLFW.mouseCallbackWrap mouseCallback)
+    (GLFW.cursorCallbackWrap cursorCallback)
   where
     open IO

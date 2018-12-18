@@ -19,6 +19,8 @@ module GLFW where
 
 open import Data.Bool
 
+open import Hask
+
 {-# FOREIGN GHC import Graphics.GPipe.Context.GLFW #-}
   
 postulate
@@ -31,3 +33,40 @@ postulate
 {-# COMPILE GHC MouseButtonState = type MouseButtonState #-}
 {-# COMPILE GHC MouseButtonState'Pressed = MouseButtonState'Pressed #-}
 {-# COMPILE GHC _==_ = (==) #-}
+
+MouseCallback : Set → Set
+MouseCallback App =
+  (app : App)
+  (button : MouseButton)
+  (state : MouseButtonState)
+  (mods : ModifierKeys)
+  → App
+
+MouseCallback′ : {M : Set} → Set → Set
+MouseCallback′ {M} App =
+  (modApp : (App → App) → M)
+  (button : MouseButton)
+  (state : MouseButtonState)
+  (mods : ModifierKeys)
+  → M
+
+mouseCallbackWrap :
+  ∀ {M App} → MouseCallback App → MouseCallback′ {M} App
+mouseCallbackWrap f modApp button state mods =
+  modApp (λ x → f x button state mods)
+
+CursorCallback : Set → Set
+CursorCallback App =
+  (app : App)
+  (x y : Double)
+  → App
+
+CursorCallback′ : {M : Set} → Set → Set
+CursorCallback′ {M} App =
+  (modApp : (App → App) → M)
+  (x y : Double)
+  → M
+
+cursorCallbackWrap :
+  ∀ {M App} → CursorCallback App → CursorCallback′ {M} App
+cursorCallbackWrap f modApp x y = modApp (λ app → f app x y)
