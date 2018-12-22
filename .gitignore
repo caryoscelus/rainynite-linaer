@@ -3,6 +3,9 @@
 \#*\#
 .\#*
 
+# editors
+.emacs*
+
 # haskell
 *.hi
 *.o
