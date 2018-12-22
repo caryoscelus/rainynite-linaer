@@ -153,7 +153,8 @@ toTriangles zoom = foldr addStroke []
 
 main = run $ do
   lift $ everything toTriangles
-    (GLFW.mouseCallbackWrap mouseCallback)
-    (GLFW.cursorCallbackWrap cursorCallback)
+    (mouseCallbackWrap mouseCallback)
+    (cursorCallbackWrap cursorCallback)
   where
     open IO
+    open GLFW
