@@ -129,7 +129,7 @@ case[] xs []→ nil x∷xs→ cons
 zip : ∀ {A B} → List A → List B → List (A × B)
 zip xs = proj₁ ∘ foldr (λ
   { y (xys , xs) →
-    (case[] xs []→ xys x∷xs→ λ x xs → (x , y) ∷ xys) , xs
+    case[] xs []→ (xys , []) x∷xs→ λ x xs → ((x , y) ∷ xys , xs)
   }) (([] , xs))
 
 drop : ∀ {A} → ℕ → List A → List A
@@ -150,18 +150,6 @@ toTriangles zoom = foldr addStroke []
         ss = zip sp (drop 1 sp)
       in
         concat (map (uncurry (drawLine q)) ss) ++_
-
-{-
-  where
-    addStroke : ?
-    addStroke stroke vertices =
-      let
-        sp = sPoints stroke
-        ss = zip sp (drop 1 sp)
-        q = toZoom zoom (sZoom stroke)
-      in
-        (ss >>= drawLine q) <> vertices
--- -}
 
 main = run $ do
   lift $ everything toTriangles
