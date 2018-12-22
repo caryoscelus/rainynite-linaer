@@ -18,8 +18,19 @@
 module Hask where
 
 postulate
-  Double Int Integer : Set
+  Float Double Int Integer : Set
+  List : Set → Set
+  [] : ∀ {A} → List A
+  foldr : {A B : Set} (f : A → B → B) (z : B) → List A → B
+  _++_ : ∀ {A} → List A → List A → List A
+  _∷_ : ∀ {A} → A → List A → List A
 
+{-# COMPILE GHC Float = type Float #-}
 {-# COMPILE GHC Double = type Double #-}
 {-# COMPILE GHC Int = type Int #-}
 {-# COMPILE GHC Integer = type Integer #-}
+{-# COMPILE GHC List = type [] #-}
+{-# COMPILE GHC [] = \ _ -> [] #-}
+{-# COMPILE GHC foldr = \ _ _ -> foldr #-}
+{-# COMPILE GHC _++_ = \ _ -> (++) #-}
+{-# COMPILE GHC _∷_ = \ _ -> (:) #-}

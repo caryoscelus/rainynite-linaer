@@ -44,24 +44,12 @@ import GL
 import Util
 import Strokes
 
-
-toTriangles :: Int -> Picture -> [V2 Float]
-toTriangles zoom = foldr addStroke []
-  where
-    addStroke stroke vertices =
-      let
-        sp = sPoints stroke
-        ss = zip sp (drop 1 sp)
-        q = toZoom zoom (sZoom stroke)
-      in
-        (ss >>= drawLine q) <> vertices
-
 zoomStep = 32
 toZoom to from = 2 ** (fromIntegral (to - from) / zoomStep)
 
-drawLine :: Double -> (Point, Point) -> [V2 Float]
-drawLine _ (a , b) | a == b = []
-drawLine q (a' , b') =
+drawLine :: Double -> Point -> Point -> [V2 Float]
+drawLine _ a b | a == b = []
+drawLine q a' b' =
   let
     tt = realToFrac . (* q) . fromIntegral
     toQ = \(V2 x y) -> V2 (tt x) (tt y)
@@ -159,7 +147,7 @@ keyCallback app key i state mods = do
       _ -> pure ()
 
 
-everything mouseCallback cursorCallback
+everything toTriangles mouseCallback cursorCallback
   = runContextT GLFW.defaultHandleConfig $ do
   let nFrames = defaultFrameCount
 

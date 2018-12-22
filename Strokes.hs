@@ -28,14 +28,17 @@
 module Strokes where
 
 import Graphics.GPipe -- TODO
+import Data.Label
 
 type Coord = Integer
 type Point = V2 Coord
 type Container a = [ a ]
 
 data Stroke = Stroke
-  { sZoom :: Int
-  , sPoints :: [Point]
+  { _sZoom :: Int
+  , _sPoints :: [Point]
   }
+
+mkLabel ''Stroke
 
 type Picture = Container Stroke

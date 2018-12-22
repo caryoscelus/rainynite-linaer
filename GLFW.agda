@@ -36,11 +36,10 @@ postulate
 
 MouseCallback : Set → Set
 MouseCallback App =
-  (app : App)
   (button : MouseButton)
   (state : MouseButtonState)
   (mods : ModifierKeys)
-  → App
+  → App → App
 
 MouseCallback′ : {M : Set} → Set → Set
 MouseCallback′ {M} App =
@@ -53,7 +52,7 @@ MouseCallback′ {M} App =
 mouseCallbackWrap :
   ∀ {M App} → MouseCallback App → MouseCallback′ {M} App
 mouseCallbackWrap f modApp button state mods =
-  modApp (λ x → f x button state mods)
+  modApp (f button state mods)
 
 CursorCallback : Set → Set
 CursorCallback App =
