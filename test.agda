@@ -69,7 +69,7 @@ Picture : Set
 Picture = List Stroke
 
 ToTriangles : Set
-ToTriangles = Int → Picture → List (V2 Float)
+ToTriangles = Int → Int → List Picture → List (V2 Float)
 
 postulate
   everything :
@@ -81,12 +81,14 @@ postulate
   wh : Int
   toZoom : Int → Int → Double
   drawLine : Double → V2 Coord -> V2 Coord -> List (V2 Float)
+  inductionOnIntAsNat : {A : Set} (z : A) (f : A → A) → Int → A
 
 {-# COMPILE GHC everything = everything #-}
 {-# COMPILE GHC screenToGl = screenToGl #-}
 {-# COMPILE GHC wh = wh #-}
 {-# COMPILE GHC toZoom = toZoom #-}
 {-# COMPILE GHC drawLine = drawLine #-}
+{-# COMPILE GHC inductionOnIntAsNat = \ _ -> inductionOnIntAsNat #-}
 
 _⟫_ : ∀ {ℓ} {A B C : Set ℓ} (F : A → B) (G : B → C) → (A → C)
 _⟫_ = flip _∘′_
@@ -110,27 +112,35 @@ cursorCallback app x y =
   in
     when′ draw appendShape app) app
 
+Int⇒ℕ : Int → ℕ
+Int⇒ℕ = inductionOnIntAsNat zero suc
+
 concat : ∀ {A} → List (List A) → List A
 concat = foldr _++_ []
 
 map : ∀ {A B} → (A → B) → List A → List B
 map f = foldr (λ x ys → f x ∷ ys) []
 
+reverse : ∀ {A} → List A → List A
+reverse = foldr (λ x xs → xs ++ (x ∷ [])) []
+
 case[]_[]→_x∷xs→_ : {A B : Set} → List A → B → (A → List A → B) → B
 case[] xs []→ nil x∷xs→ cons
   with foldr (λ
-    { x (inj₁ tt) → inj₂ (x , [])
-    ; x (inj₂ (y , xs)) → inj₂ (y , x ∷ xs)
+    { y (inj₁ tt) → inj₂ (y , [])
+    ; y (inj₂ (x , xs)) → inj₂ (y , x ∷ xs)
     })
     (inj₁ tt) xs
 ...  | inj₁ tt = nil
 ...  | inj₂ (head , tail) = cons head tail
 
+{-# NON_TERMINATING #-}
 zip : ∀ {A B} → List A → List B → List (A × B)
-zip xs = proj₁ ∘ foldr (λ
-  { y (xys , xs) →
-    case[] xs []→ (xys , []) x∷xs→ λ x xs → ((x , y) ∷ xys , xs)
-  }) (([] , xs))
+zip xs ys = case[] xs
+  []→ []
+  x∷xs→ λ x xs → case[] ys
+    []→ []
+    x∷xs→ λ y ys → (x , y) ∷ zip xs ys
 
 drop : ∀ {A} → ℕ → List A → List A
 drop zero xs = xs
@@ -138,8 +148,8 @@ drop (suc n) xs = case[] xs
   []→ []
   x∷xs→ λ x xs → drop n xs
 
-toTriangles : ToTriangles
-toTriangles zoom = foldr addStroke []
+pic⇒triangles : Int → Picture → List (V2 Float)
+pic⇒triangles zoom = foldr addStroke []
   where
     addStroke :
       (stroke : Stroke) (vertices : List (V2 Float)) → List (V2 Float)
@@ -150,6 +160,44 @@ toTriangles zoom = foldr addStroke []
         ss = zip sp (drop 1 sp)
       in
         concat (map (uncurry (drawLine q)) ss) ++_
+
+{-# NON_TERMINATING #-}
+getLast : ∀ {A} (z : A) (xs : List A) → A
+getLast z xs = case[] xs
+  []→ z
+  x∷xs→ λ x xs → getLast x xs
+
+index : ∀ {A} (z : A) (n : ℕ) (xs : List A) → A
+index z zero xs = case[] xs
+  []→ z
+  x∷xs→ λ x xs → x
+index z (suc n) xs = case[] xs
+  []→ z
+  x∷xs→ λ x xs → index x n xs
+
+getAround : ∀ {A} (z : A) (n : ℕ) (xs : List A) → A × A
+getAround z zero xs = getLast z xs , index z 1 xs
+getAround z (suc n) xs = index z n xs , index z (suc (suc n)) xs
+
+iStrokes : Stroke → Stroke → Stroke
+iStrokes = λ _ z → z
+
+interpolate : Int → Picture → Picture → List (V2 Float)
+interpolate zoom before after =
+  pic⇒triangles zoom (map (uncurry iStrokes) (zip before after))
+
+toTriangles : ToTriangles
+toTriangles zoom n′ frames =
+  let
+    n = Int⇒ℕ n′
+  in
+    pic⇒triangles zoom (index [] n frames)
+
+{- case[] drop n frames
+  []→ []
+  x∷xs→ λ frame tail → case[] frame
+    []→ pic⇒triangles zoom frame -- uncurry (interpolate zoom) (getAround frame n frames)
+    x∷xs→ λ _ _ → pic⇒triangles zoom frame -}
 
 main = run $ do
   lift $ everything toTriangles

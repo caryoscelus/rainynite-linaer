@@ -44,6 +44,11 @@ import GL
 import Util
 import Strokes
 
+-- for agda
+inductionOnIntAsNat :: a -> (a -> a) -> Int -> a
+inductionOnIntAsNat z f n | n <= 0 = z
+inductionOnIntAsNat z f n = f (inductionOnIntAsNat z f (pred n))
+
 zoomStep = 32
 toZoom to from = 2 ** (fromIntegral (to - from) / zoomStep)
 
@@ -189,7 +194,7 @@ everything toTriangles mouseCallback cursorCallback
 
   foreverTil (fromMaybe False <$> GLFW.windowShouldClose win) $ do
     fi <- liftIO $ get nowFrame <$> readIORef app
-    picture <- fmap (!! fi) . liftIO $ get frames <$> readIORef app
+    pictures <- liftIO $ get frames <$> readIORef app
     zl <- liftIO $ get zoomLevel <$> readIORef app
     haveToClear <- liftIO $ get needToClearTexture <$> readIORef app
 
@@ -199,7 +204,7 @@ everything toTriangles mouseCallback cursorCallback
     liftIO $ modifyIORef app clearedTexture
 
     let
-      lines = toTriangles (zl - 256) picture
+      lines = toTriangles (zl - 256) fi pictures
 
     lineBuff :: Buffer os (B4 Float, B3 Float) <- newBuffer (length lines)
     unless (lines == []) $
