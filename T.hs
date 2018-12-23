@@ -155,6 +155,19 @@ keyCallback app key i state mods = do
         modifyIORef app $ modify nowFrame ((`mod` nFrames) . succ)
       _ -> pure ()
 
+penColor = V3 0.5 0.5 0.5
+
+proceedRender toTriangles zl fi pictures shader tex = do
+  let
+    lines = toTriangles (zl - 256) fi pictures
+  lineBuff :: Buffer os (B4 Float, B3 Float) <- newBuffer (length lines)
+  unless (lines == []) $
+    writeBuffer lineBuff 0 (fmap (\xy -> (v2to4 xy , penColor)) lines)
+  render $ do
+    vertexArray <- newVertexArray lineBuff
+    let brushTriangles = toPrimitiveArray TriangleList vertexArray
+    img <- getTexture2DImage tex 0
+    shader (OnTexture img brushTriangles)
 
 everything toTriangles mouseCallback cursorCallback
   = runContextT GLFW.defaultHandleConfig $ do
@@ -175,7 +188,6 @@ everything toTriangles mouseCallback cursorCallback
   win <- newWindow (WindowFormatColor RGB8) wCfg
 
   let
-    penColor = V3 0.5 0.5 0.5
     bgColor  = V3 0.0 0.0 0.0
     allColors = V3 True True True
 
@@ -206,21 +218,10 @@ everything toTriangles mouseCallback cursorCallback
 
     when haveToClear $ clearTex nowTex
     liftIO $ modifyIORef app clearedTexture
-
-    let
-      lines = toTriangles (zl - 256) fi pictures
-
-    lineBuff :: Buffer os (B4 Float, B3 Float) <- newBuffer (length lines)
-    unless (lines == []) $
-      writeBuffer lineBuff 0 (fmap (\xy -> (v2to4 xy , penColor)) lines)
-
+    
     -- render frame to texture
     -- TODO: don't re-render when not needed
-    render $ do
-      vertexArray <- newVertexArray lineBuff
-      let brushTriangles = toPrimitiveArray TriangleList vertexArray
-      img <- getTexture2DImage nowTex 0
-      brushTexShader (OnTexture img brushTriangles)
+    proceedRender toTriangles zl fi pictures brushTexShader nowTex
 
     -- put that onto window
     render $ do
