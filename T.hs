@@ -38,7 +38,6 @@ import Control.Monad.IO.Class
 import Control.Monad
 import Control.Category ((>>>))
 import Data.Label
-import Data.Label.Derive
 
 import GL
 import Util
@@ -48,6 +47,11 @@ import Strokes
 inductionOnIntAsNat :: a -> (a -> a) -> Int -> a
 inductionOnIntAsNat z f n | n <= 0 = z
 inductionOnIntAsNat z f n = f (inductionOnIntAsNat z f (pred n))
+
+avg x y = (x + y) `div` 2
+
+v2x = lens (\(V2 x _) -> x) (\f (V2 x y) -> V2 (f x) y)
+v2y = lens (\(V2 _ y) -> y) (\f (V2 x y) -> V2 x (f y))
 
 zoomStep = 32
 toZoom to from = 2 ** (fromIntegral (to - from) / zoomStep)

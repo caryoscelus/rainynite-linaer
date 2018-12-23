@@ -24,7 +24,10 @@ postulate
   _፦_ : (F A : Set) → Set
   set : {A F : Set} (lens : F ፦ A) → A → F → F
   get : {A F : Set} (lens : F ፦ A) → F → A
+  modify : {A F : Set} (lens : F ፦ A) → (A → A) → F → F
 
 {-# COMPILE GHC _፦_ = type (:->) #-}
 {-# COMPILE GHC set = \_ _ -> set #-}
 {-# COMPILE GHC get = \_ _ -> get #-}
+{-# COMPILE GHC modify = \_ _ -> modify #-}
+

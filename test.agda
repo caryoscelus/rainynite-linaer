@@ -18,11 +18,15 @@
 module test where
 
 open import Data.Empty
-open import Data.Unit
-open import Data.Bool
+open import Data.Unit hiding (_≟_)
+open import Data.Bool hiding (_≟_)
 open import Data.Nat
+open import Data.Nat.Properties
+open import Data.Nat.DivMod
 open import Data.Sum hiding (map)
 open import Data.Product hiding (map ; zip)
+open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary.Decidable hiding (map)
 
 import IO.Primitive as Prim
 import IO
@@ -40,11 +44,17 @@ import GLFW
   #-}
 
 postulate
-  Coord : Set
   V2 : Set → Set
+  mkV2 : ∀ {A} → A → A → V2 A
+  ፦x : ∀ {A} → V2 A ፦ A
+  ፦y : ∀ {A} → V2 A ፦ A
 
 {-# COMPILE GHC V2 = type V2 #-}
-{-# COMPILE GHC Coord = type Coord #-}
+{-# COMPILE GHC mkV2 = \ _ -> V2 #-}
+{-# COMPILE GHC ፦x = \ _ -> v2x #-}
+{-# COMPILE GHC ፦y = \ _ -> v2y #-}
+
+Coord = Integer
 
 postulate
   DrawApp : Set
@@ -55,6 +65,7 @@ postulate
   Stroke : Set
   sPoints : Stroke ፦ List (V2 Coord)
   sZoom : Stroke ፦ Int
+  avgC : Coord → Coord → Coord
 
 {-# COMPILE GHC DrawApp = type DrawApp #-}
 {-# COMPILE GHC isDrawing = isDrawing #-}
@@ -64,6 +75,7 @@ postulate
 {-# COMPILE GHC Stroke = type Stroke #-}
 {-# COMPILE GHC sPoints = sPoints #-}
 {-# COMPILE GHC sZoom = sZoom #-}
+{-# COMPILE GHC avgC = avg #-}
 
 Picture : Set
 Picture = List Stroke
@@ -179,8 +191,66 @@ getAround : ∀ {A} (z : A) (n : ℕ) (xs : List A) → A × A
 getAround z zero xs = getLast z xs , index z 1 xs
 getAround z (suc n) xs = index z n xs , index z (suc (suc n)) xs
 
+module _ where
+  import Data.List as L
+  import Data.Vec as V
+  import Data.Fin as Fin
+
+  toL : ∀ {A} → List A → L.List A
+  toL = foldr L._∷_ L.[]
+
+  fromL : ∀ {A} → L.List A → List A
+  fromL = L.foldr _∷_ []
+
+  v2avg : V2 Coord → V2 Coord → V2 Coord
+  v2avg a b = mkV2
+    (avgC (get ፦x a) (get ፦x b))
+    (avgC (get ፦y a) (get ፦y b))
+
+  sample-at :
+    ∀ {m} (n : ℕ)
+    {m≠0 : m ≡ 0 → ⊥}
+    {n≠0 : False (n ≟ 0)}
+    (xs : V.Vec (V2 Coord) m)
+    (i : ℕ)
+    → V2 Coord
+  sample-at {m} n {m≠0} {n≠0} xs i =
+    let
+      p′ = _div_ (i * m) n {n≠0}
+      p = p′ ⊓ pred m
+      p-ok : p < m
+      p-ok = ≤-trans
+        (s≤s (m⊓n≤n p′ (pred m)))
+        (≤-reflexive (m≢0⇒suc[pred[m]]≡m m≠0))
+    in
+      V.lookup (Fin.fromℕ≤ p-ok) xs
+
+  vec-length : ∀ {ℓ n} {A : Set ℓ} → V.Vec A n → ℕ
+  vec-length {_} {n} _ = n
+
+  doIt : L.List (V2 Coord) → L.List (V2 Coord) → L.List (V2 Coord)
+  doIt a b
+    with L.length a | V.fromList a | L.length b | V.fromList b
+  ...  | .zero    | V.[]     | .zero    | V.[]         = L.[]
+  ...  | .(suc _) | _ V.∷ _  | .zero    | V.[]         = L.[]
+  ...  | .zero    | V.[]     | .(suc _) | _ V.∷ _      = L.[]
+  ...  | .(suc _) | xs@(_ V.∷ _) | .(suc _) | ys@(_ V.∷ _)     =
+    let
+      l = vec-length xs ⊔ vec-length ys
+    in
+      V.toList $
+        V.map (λ n →
+          v2avg
+            (sample-at l {λ ()} xs n)
+            (sample-at l {λ ()} ys n))
+        (V.fromList $ L.upTo l)
+
+  doIt′ : List (V2 Coord) → List (V2 Coord) → List (V2 Coord)
+  doIt′ x y = fromL (doIt (toL x) (toL y))
+
+-- UGH ; ignoring zoom ; ...
 iStrokes : Stroke → Stroke → Stroke
-iStrokes = λ _ z → z
+iStrokes a b = modify sPoints (doIt′ (get sPoints b)) a
 
 interpolate : Int → Picture → Picture → List (V2 Float)
 interpolate zoom before after =
@@ -191,13 +261,11 @@ toTriangles zoom n′ frames =
   let
     n = Int⇒ℕ n′
   in
-    pic⇒triangles zoom (index [] n frames)
-
-{- case[] drop n frames
-  []→ []
-  x∷xs→ λ frame tail → case[] frame
-    []→ pic⇒triangles zoom frame -- uncurry (interpolate zoom) (getAround frame n frames)
-    x∷xs→ λ _ _ → pic⇒triangles zoom frame -}
+    case[] drop n frames
+      []→ []
+      x∷xs→ λ frame tail → case[] frame
+        []→ uncurry (interpolate zoom) (getAround frame n frames)
+        x∷xs→ λ _ _ → pic⇒triangles zoom frame
 
 main = run $ do
   lift $ everything toTriangles
