@@ -25,6 +25,7 @@ open import Data.Nat.Properties
 open import Data.Nat.DivMod
 open import Data.Sum hiding (map)
 open import Data.Product hiding (map ; zip)
+open import Data.List
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary.Decidable hiding (map)
 
@@ -127,39 +128,6 @@ cursorCallback app x y =
 Int⇒ℕ : Int → ℕ
 Int⇒ℕ = inductionOnIntAsNat zero suc
 
-concat : ∀ {A} → List (List A) → List A
-concat = foldr _++_ []
-
-map : ∀ {A B} → (A → B) → List A → List B
-map f = foldr (λ x ys → f x ∷ ys) []
-
-reverse : ∀ {A} → List A → List A
-reverse = foldr (λ x xs → xs ++ (x ∷ [])) []
-
-case[]_[]→_x∷xs→_ : {A B : Set} → List A → B → (A → List A → B) → B
-case[] xs []→ nil x∷xs→ cons
-  with foldr (λ
-    { y (inj₁ tt) → inj₂ (y , [])
-    ; y (inj₂ (x , xs)) → inj₂ (y , x ∷ xs)
-    })
-    (inj₁ tt) xs
-...  | inj₁ tt = nil
-...  | inj₂ (head , tail) = cons head tail
-
-{-# NON_TERMINATING #-}
-zip : ∀ {A B} → List A → List B → List (A × B)
-zip xs ys = case[] xs
-  []→ []
-  x∷xs→ λ x xs → case[] ys
-    []→ []
-    x∷xs→ λ y ys → (x , y) ∷ zip xs ys
-
-drop : ∀ {A} → ℕ → List A → List A
-drop zero xs = xs
-drop (suc n) xs = case[] xs
-  []→ []
-  x∷xs→ λ x xs → drop n xs
-
 pic⇒triangles : Int → Picture → List (V2 Float)
 pic⇒triangles zoom = foldr addStroke []
   where
@@ -173,34 +141,22 @@ pic⇒triangles zoom = foldr addStroke []
       in
         concat (map (uncurry (drawLine q)) ss) ++_
 
-{-# NON_TERMINATING #-}
-getLast : ∀ {A} (z : A) (xs : List A) → A
-getLast z xs = case[] xs
-  []→ z
-  x∷xs→ λ x xs → getLast x xs
+getLast : ∀ {ℓ} {A : Set ℓ} (z : A) (xs : List A) → A
+getLast z [] = z
+getLast z (x ∷ xs) = getLast x xs
 
-index : ∀ {A} (z : A) (n : ℕ) (xs : List A) → A
-index z zero xs = case[] xs
-  []→ z
-  x∷xs→ λ x xs → x
-index z (suc n) xs = case[] xs
-  []→ z
-  x∷xs→ λ x xs → index x n xs
+index : ∀ {ℓ} {A : Set ℓ} (z : A) (n : ℕ) (xs : List A) → A
+index z _ [] = z
+index z zero (x ∷ xs) = x
+index z (suc n) (x ∷ xs) = index x n xs
 
-getAround : ∀ {A} (z : A) (n : ℕ) (xs : List A) → A × A
+getAround : ∀ {ℓ} {A : Set ℓ} (z : A) (n : ℕ) (xs : List A) → A × A
 getAround z zero xs = getLast z xs , index z 1 xs
 getAround z (suc n) xs = index z n xs , index z (suc (suc n)) xs
 
 module _ where
-  import Data.List as L
   import Data.Vec as V
   import Data.Fin as Fin
-
-  toL : ∀ {A} → List A → L.List A
-  toL = foldr L._∷_ L.[]
-
-  fromL : ∀ {A} → L.List A → List A
-  fromL = L.foldr _∷_ []
 
   v2avg : V2 Coord → V2 Coord → V2 Coord
   v2avg a b = mkV2
@@ -228,12 +184,12 @@ module _ where
   vec-length : ∀ {ℓ n} {A : Set ℓ} → V.Vec A n → ℕ
   vec-length {_} {n} _ = n
 
-  doIt : L.List (V2 Coord) → L.List (V2 Coord) → L.List (V2 Coord)
+  doIt : List (V2 Coord) → List (V2 Coord) → List (V2 Coord)
   doIt a b
-    with L.length a | V.fromList a | L.length b | V.fromList b
-  ...  | .zero    | V.[]     | .zero    | V.[]         = L.[]
-  ...  | .(suc _) | _ V.∷ _  | .zero    | V.[]         = L.[]
-  ...  | .zero    | V.[]     | .(suc _) | _ V.∷ _      = L.[]
+    with length a | V.fromList a | length b | V.fromList b
+  ...  | .zero    | V.[]     | .zero    | V.[]         = []
+  ...  | .(suc _) | _ V.∷ _  | .zero    | V.[]         = []
+  ...  | .zero    | V.[]     | .(suc _) | _ V.∷ _      = []
   ...  | .(suc _) | xs@(_ V.∷ _) | .(suc _) | ys@(_ V.∷ _)     =
     let
       l = vec-length xs ⊔ vec-length ys
@@ -243,29 +199,26 @@ module _ where
           v2avg
             (sample-at l {λ ()} xs n)
             (sample-at l {λ ()} ys n))
-        (V.fromList $ L.upTo l)
-
-  doIt′ : List (V2 Coord) → List (V2 Coord) → List (V2 Coord)
-  doIt′ x y = fromL (doIt (toL x) (toL y))
+        (V.fromList $ upTo l)
 
 -- UGH ; ignoring zoom ; ...
 iStrokes : Stroke → Stroke → Stroke
-iStrokes a b = modify sPoints (doIt′ (get sPoints b)) a
+iStrokes a b = modify sPoints (doIt (get sPoints b)) a
 
 interpolate : Int → Picture → Picture → List (V2 Float)
 interpolate zoom before after =
   pic⇒triangles zoom (map (uncurry iStrokes) (zip before after))
 
 toTriangles : ToTriangles
-toTriangles zoom n′ frames =
-  let
-    n = Int⇒ℕ n′
-  in
-    case[] drop n frames
-      []→ []
-      x∷xs→ λ frame tail → case[] frame
-        []→ uncurry (interpolate zoom) (getAround frame n frames)
-        x∷xs→ λ _ _ → pic⇒triangles zoom frame
+toTriangles zoom n′ frames
+  with Int⇒ℕ n′
+...  | n
+  with drop n frames
+...  | [] = []
+...  | frame ∷ tail
+  with frame
+...  | [] = uncurry (interpolate zoom) (getAround frame n frames)
+...  | _ ∷ _ = pic⇒triangles zoom frame
 
 main = run $ do
   lift $ everything toTriangles
