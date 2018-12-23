@@ -137,20 +137,6 @@ screenToGl w h x y = V2
   (- fromIntegral w `div` 2 + floor x)
   (fromIntegral h `div` 2 - floor y)
 
-keyCallback app key i state mods = do
-  when (state /= GLFW.KeyState'Released) $ do
-    modifyIORef app requestClearTexture
-    case key of
-      GLFW.Key'Equal -> modifyIORef app (modify zoomLevel succ)
-      GLFW.Key'Minus -> modifyIORef app (modify zoomLevel pred)
-      GLFW.Key'Left -> do
-        nFrames <- get frameCount <$> readIORef app
-        modifyIORef app $ modify nowFrame ((`mod` nFrames) . pred)
-      GLFW.Key'Right -> do
-        nFrames <- get frameCount <$> readIORef app
-        modifyIORef app $ modify nowFrame ((`mod` nFrames) . succ)
-      _ -> pure ()
-
 penColor = V3 0.5 0.5 0.5
 
 v2to4 :: Num i => V2 i -> V4 i
@@ -168,7 +154,7 @@ proceedRender toTriangles zl fi pictures shader tex = do
     img <- getTexture2DImage tex 0
     shader (OnTexture img brushTriangles)
 
-everything toTriangles mouseCallback cursorCallback
+everything toTriangles mouseCallback cursorCallback keyCallback
   = runContextT GLFW.defaultHandleConfig $ do
   let nFrames = defaultFrameCount
 
@@ -197,7 +183,8 @@ everything toTriangles mouseCallback cursorCallback
     mouseCallback (modifyIORef app)
   GLFW.setCursorPosCallback win . pure $
     cursorCallback (modifyIORef app)
-  GLFW.setKeyCallback win $ pure (keyCallback app)
+  GLFW.setKeyCallback win . pure $
+    keyCallback (modifyIORef app)
   
   wholeScreenBuff :: Buffer os (B2 Float) <- newBuffer 4
   writeBuffer wholeScreenBuff 0

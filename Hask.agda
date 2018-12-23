@@ -19,8 +19,14 @@ module Hask where
 
 postulate
   Float Double Int Integer : Set
+  Isuc Ipred : Int → Int
+  _Imod_ _Idiv_ : Int → Int → Int
 
 {-# COMPILE GHC Float = type Float #-}
 {-# COMPILE GHC Double = type Double #-}
 {-# COMPILE GHC Int = type Int #-}
 {-# COMPILE GHC Integer = type Integer #-}
+{-# COMPILE GHC Isuc = succ #-}
+{-# COMPILE GHC Ipred = pred #-}
+{-# COMPILE GHC _Imod_ = mod #-}
+{-# COMPILE GHC _Idiv_ = div #-}

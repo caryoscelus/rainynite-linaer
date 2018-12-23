@@ -38,6 +38,7 @@ open import Function
 open import Hask
 open import FCLabels
 import GLFW
+open import Keys
 
 {-# FOREIGN GHC
   import T
@@ -61,6 +62,10 @@ Coord = Integer
 postulate
   DrawApp : Set
   isDrawing : DrawApp ፦ Bool
+  needToClearTexture : DrawApp ፦ Bool
+  nowFrame : DrawApp ፦ Int
+  frameCount : DrawApp ፦ Int
+  zoomLevel : DrawApp ፦ Int
   cursor : DrawApp ፦ V2 Coord
   newShape : DrawApp → DrawApp
   appendShape : DrawApp → DrawApp
@@ -71,6 +76,10 @@ postulate
 
 {-# COMPILE GHC DrawApp = type DrawApp #-}
 {-# COMPILE GHC isDrawing = isDrawing #-}
+{-# COMPILE GHC needToClearTexture = needToClearTexture #-}
+{-# COMPILE GHC nowFrame = nowFrame #-}
+{-# COMPILE GHC frameCount = frameCount #-}
+{-# COMPILE GHC zoomLevel = zoomLevel #-}
 {-# COMPILE GHC cursor = cursor #-}
 {-# COMPILE GHC newShape = newShape #-}
 {-# COMPILE GHC appendShape = appendShape #-}
@@ -93,6 +102,7 @@ postulate
     ToTriangles →
     GLFW.MouseCallback′ {Prim.IO ⊤} DrawApp →
     GLFW.CursorCallback′ {Prim.IO ⊤} DrawApp →
+    GLFW.KeyCallback′ {Prim.IO ⊤} DrawApp →
     Prim.IO ⊤
   screenToGl : (w h : Int) (x y : Double) → V2 Coord
   wh : Int
@@ -131,6 +141,26 @@ cursorCallback app x y =
 
 Int⇒ℕ : Int → ℕ
 Int⇒ℕ = inductionOnIntAsNat zero suc
+
+keyCallback : GLFW.KeyCallback DrawApp
+keyCallback app _ _ KeyState'Released _ = app
+keyCallback app Key'Equal _ _ _ =
+  (set needToClearTexture true ⟫ modify zoomLevel Isuc) app
+keyCallback app Key'Minus _ _ _ =
+  (set needToClearTexture true ⟫ modify zoomLevel Ipred) app
+keyCallback app Key'Left _ _ _ =
+  (set needToClearTexture true ⟫
+  let
+    nFrames = get frameCount app
+  in
+    modify nowFrame (_Imod nFrames ∘ Ipred)) app
+keyCallback app Key'Right _ _ _ =
+  (set needToClearTexture true ⟫
+  let
+    nFrames = get frameCount app
+  in
+    modify nowFrame (_Imod nFrames ∘ Isuc)) app
+keyCallback app _ _ _ _ = app
 
 pic⇒triangles : Int → Picture → List (V2 Float)
 pic⇒triangles zoom = foldr addStroke []
@@ -234,6 +264,7 @@ main = run $ do
   lift $ everything toTriangles
     (mouseCallbackWrap mouseCallback)
     (cursorCallbackWrap cursorCallback)
+    (keyCallbackWrap keyCallback)
   where
     open IO
     open GLFW

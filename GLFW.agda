@@ -20,6 +20,7 @@ module GLFW where
 open import Data.Bool
 
 open import Hask
+open import Keys
 
 {-# FOREIGN GHC import Graphics.GPipe.Context.GLFW #-}
   
@@ -69,3 +70,26 @@ CursorCallback′ {M} App =
 cursorCallbackWrap :
   ∀ {M App} → CursorCallback App → CursorCallback′ {M} App
 cursorCallbackWrap f modApp x y = modApp (λ app → f app x y)
+
+KeyCallback : Set → Set
+KeyCallback App =
+  (app : App)
+  (key : Key)
+  (scancode : Int)
+  (state : KeyState)
+  (mods : ModifierKeys)
+  → App
+
+KeyCallback′ : {M : Set} → Set → Set
+KeyCallback′ {M} App =
+  (modApp : (App → App) → M)
+  (key : Key)
+  (scancode : Int)
+  (state : KeyState)
+  (mods : ModifierKeys)
+  → M
+
+keyCallbackWrap :
+  ∀ {M App} → KeyCallback App → KeyCallback′ {M} App
+keyCallbackWrap f modApp key scancode state mods = modApp
+  (λ app → f app key scancode state mods)
