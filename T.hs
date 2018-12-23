@@ -72,11 +72,7 @@ drawLine q a' b' =
     , b-dt    , b+dt
     ]
 
-v2to4 :: Num i => V2 i -> V4 i
-v2to4 (V2 x y) = V4 x y 0 1
-
 wh = 512
-
 
 data DrawApp = DrawApp
   { _frameCount :: Int
@@ -157,9 +153,12 @@ keyCallback app key i state mods = do
 
 penColor = V3 0.5 0.5 0.5
 
+v2to4 :: Num i => V2 i -> V4 i
+v2to4 (V2 x y) = V4 x y 0 1
+
 proceedRender toTriangles zl fi pictures shader tex = do
   let
-    lines = toTriangles (zl - 256) fi pictures
+    lines = toTriangles zl fi pictures
   lineBuff :: Buffer os (B4 Float, B3 Float) <- newBuffer (length lines)
   unless (lines == []) $
     writeBuffer lineBuff 0 (fmap (\xy -> (v2to4 xy , penColor)) lines)
@@ -219,9 +218,8 @@ everything toTriangles mouseCallback cursorCallback
     when haveToClear $ clearTex nowTex
     liftIO $ modifyIORef app clearedTexture
     
-    -- render frame to texture
-    -- TODO: don't re-render when not needed
-    proceedRender toTriangles zl fi pictures brushTexShader nowTex
+    proceedRender
+      toTriangles (zl - 256) fi pictures brushTexShader nowTex
 
     -- put that onto window
     render $ do
