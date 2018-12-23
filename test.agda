@@ -82,8 +82,11 @@ postulate
 Picture : Set
 Picture = List Stroke
 
+Triangles : Set
+Triangles = List (V2 Float)
+
 ToTriangles : Set
-ToTriangles = Int → Int → List Picture → List (V2 Float)
+ToTriangles = Int → Int → List Picture → Triangles
 
 postulate
   everything :
@@ -91,7 +94,7 @@ postulate
     GLFW.MouseCallback′ {Prim.IO ⊤} DrawApp →
     GLFW.CursorCallback′ {Prim.IO ⊤} DrawApp →
     Prim.IO ⊤
-  screenToGl : (w h : Int) (x y : Double) -> V2 Coord
+  screenToGl : (w h : Int) (x y : Double) → V2 Coord
   wh : Int
   toZoom : Int → Int → Double
   drawLine : Double → V2 Coord -> V2 Coord -> List (V2 Float)
