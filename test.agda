@@ -25,6 +25,7 @@ open import Data.Nat.Properties
 open import Data.Nat.DivMod
 open import Data.Sum hiding (map)
 open import Data.Product hiding (map ; zip)
+import Data.Product as P
 open import Data.List
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary.Decidable hiding (map)
@@ -150,13 +151,22 @@ index z _ [] = z
 index z zero (x ∷ xs) = x
 index z (suc n) (x ∷ xs) = index x n xs
 
-getAround : ∀ {ℓ} {A : Set ℓ} (z : A) (n : ℕ) (xs : List A) → A × A
-getAround z zero xs = getLast z xs , index z 1 xs
-getAround z (suc n) xs = index z n xs , index z (suc (suc n)) xs
-
 module _ where
   import Data.Vec as V
   import Data.Fin as Fin
+
+  vec-length : ∀ {ℓ n} {A : Set ℓ} → V.Vec A n → ℕ
+  vec-length {_} {n} _ = n
+
+  getAround : ∀ {ℓ} {A : Set ℓ} (z : A) (n : ℕ) (xs : List A) → A × A
+  getAround z n xs
+    with length xs | V.fromList xs
+  ...  | .zero     | V.[] = z , z
+  ...  | .(suc _)  | xs′@(_ V.∷ _) =
+    let
+      kk x = V.lookup (x mod (vec-length xs′)) xs′
+    in
+      P.map kk kk (pred n , suc n)
 
   v2avg : V2 Coord → V2 Coord → V2 Coord
   v2avg a b = mkV2
@@ -180,9 +190,6 @@ module _ where
         (≤-reflexive (m≢0⇒suc[pred[m]]≡m m≠0))
     in
       V.lookup (Fin.fromℕ≤ p-ok) xs
-
-  vec-length : ∀ {ℓ n} {A : Set ℓ} → V.Vec A n → ℕ
-  vec-length {_} {n} _ = n
 
   doIt : List (V2 Coord) → List (V2 Coord) → List (V2 Coord)
   doIt a b
