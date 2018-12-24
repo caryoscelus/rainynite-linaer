@@ -36,6 +36,7 @@ import qualified Graphics.GPipe.Context.GLFW as GLFW
 import Data.IORef
 import Control.Monad.IO.Class
 import Control.Monad
+import Control.Monad.Exception (MonadException)
 import Control.Category ((>>>))
 import Data.Label
 
@@ -142,9 +143,14 @@ penColor = V3 0.5 0.5 0.5
 v2to4 :: Num i => V2 i -> V4 i
 v2to4 (V2 x y) = V4 x y 0 1
 
-proceedRender toTriangles zl fi pictures shader tex = do
+proceedRender toTriangles app clearTex shader tex = do
+  when (get needToClearTexture app) $ clearTex tex
   let
-    lines = toTriangles zl fi pictures
+    app' = set needToClearTexture False app
+    lines = toTriangles
+      (get zoomLevel app - 256)
+      (get nowFrame app)
+      (get frames app)
   lineBuff :: Buffer os (B4 Float, B3 Float) <- newBuffer (length lines)
   unless (lines == []) $
     writeBuffer lineBuff 0 (fmap (\xy -> (v2to4 xy , penColor)) lines)
@@ -153,6 +159,7 @@ proceedRender toTriangles zl fi pictures shader tex = do
     let brushTriangles = toPrimitiveArray TriangleList vertexArray
     img <- getTexture2DImage tex 0
     shader (OnTexture img brushTriangles)
+  pure app'
 
 everything toTriangles mouseCallback cursorCallback keyCallback
   = runContextT GLFW.defaultHandleConfig $ do
@@ -195,18 +202,14 @@ everything toTriangles mouseCallback cursorCallback keyCallback
     ]
 
   foreverTil (fromMaybe False <$> GLFW.windowShouldClose win) $ do
+    appVal <- liftIO $ readIORef app
     fi <- liftIO $ get nowFrame <$> readIORef app
-    pictures <- liftIO $ get frames <$> readIORef app
-    zl <- liftIO $ get zoomLevel <$> readIORef app
-    haveToClear <- liftIO $ get needToClearTexture <$> readIORef app
 
     let nowTex = frameTextures !! fi
 
-    when haveToClear $ clearTex nowTex
-    liftIO $ modifyIORef app clearedTexture
-    
-    proceedRender
-      toTriangles (zl - 256) fi pictures brushTexShader nowTex
+    appVal' <- proceedRender
+      toTriangles appVal clearTex brushTexShader nowTex
+    liftIO $ writeIORef app appVal'
 
     -- put that onto window
     render $ do
