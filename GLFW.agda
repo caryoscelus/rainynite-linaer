@@ -27,15 +27,9 @@ open Types
 {-# FOREIGN GHC import Graphics.GPipe.Context.GLFW #-}
   
 postulate
-  MouseButton ModifierKeys MouseButtonState : Set
-  MouseButtonState'Pressed : MouseButtonState
-  _==_ : (x y : MouseButtonState) → Bool
+  ModifierKeys : Set
 
-{-# COMPILE GHC MouseButton = type MouseButton #-}
 {-# COMPILE GHC ModifierKeys = type ModifierKeys #-}
-{-# COMPILE GHC MouseButtonState = type MouseButtonState #-}
-{-# COMPILE GHC MouseButtonState'Pressed = MouseButtonState'Pressed #-}
-{-# COMPILE GHC _==_ = (==) #-}
 
 MouseCallback : Set → Set
 MouseCallback App =

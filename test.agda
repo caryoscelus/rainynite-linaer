@@ -125,11 +125,9 @@ when′ false _ = id
 when′ true f = f
 
 mouseCallback : GLFW.MouseCallback DrawApp
-mouseCallback button state mods =
-  let
-    pressed = state GLFW.== GLFW.MouseButtonState'Pressed
-  in
-    set isDrawing pressed ⟫ when′ pressed newShape
+mouseCallback button MouseButtonState'Pressed mods =
+  set isDrawing true ⟫ newShape
+mouseCallback button _ mods = set isDrawing false
 
 cursorCallback : GLFW.CursorCallback DrawApp
 cursorCallback app x y =
