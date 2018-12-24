@@ -20,6 +20,8 @@ module Hask where
 postulate
   Float Double Int Integer : Set
   Isuc Ipred : Int → Int
+  I0 : Int
+  Ir0 : Integer
   _Imod_ _Idiv_ : Int → Int → Int
 
 {-# COMPILE GHC Float = type Float #-}
@@ -30,3 +32,5 @@ postulate
 {-# COMPILE GHC Ipred = pred #-}
 {-# COMPILE GHC _Imod_ = mod #-}
 {-# COMPILE GHC _Idiv_ = div #-}
+{-# COMPILE GHC I0 = 0 #-}
+{-# COMPILE GHC Ir0 = 0 #-}

@@ -36,9 +36,10 @@ import IO
 open import Function
 
 open import Hask
-open import FCLabels
 import GLFW
 open GLFW.Types
+
+open import NanoLens
 
 {-# FOREIGN GHC
   import T
@@ -49,60 +50,132 @@ open GLFW.Types
 postulate
   V2 : Set → Set
   mkV2 : ∀ {A} → A → A → V2 A
-  ፦x : ∀ {A} → V2 A ፦ A
-  ፦y : ∀ {A} → V2 A ፦ A
+  v2x : ∀ {A} → V2 A → A
+  v2y : ∀ {A} → V2 A → A
 
 {-# COMPILE GHC V2 = type V2 #-}
 {-# COMPILE GHC mkV2 = \ _ -> V2 #-}
-{-# COMPILE GHC ፦x = \ _ -> v2x #-}
-{-# COMPILE GHC ፦y = \ _ -> v2y #-}
+{-# COMPILE GHC v2x = \ _ (V2 x _) -> x #-}
+{-# COMPILE GHC v2y = \ _ (V2 _ y) -> y #-}
+
+፦x : ∀ {A} → V2 A ፦ A
+፦y : ∀ {A} → V2 A ፦ A
+
+get ፦x = v2x
+set ፦x x xy = mkV2 x (get ፦y xy)
+
+get ፦y = v2y
+set ፦y y xy = mkV2 (get ፦x xy) y
 
 Coord = Integer
+Point = V2 Coord
+
+record Stroke : Set where
+  constructor mkStroke
+  field
+    sZoom′ : Int
+    sPoints′ : List Point
+
+unquoteDecl
+  sZoom
+  sPoints
+  = autoLens
+  ( sZoom
+  ∷ sPoints
+  ∷ []) (quote Stroke)
+
+Picture = List Stroke
+
+record DrawApp : Set where
+  field
+    frameCount′ : ℕ
+    nowFrame′ : ℕ
+    frames′ : List Picture
+
+    cursor′ : V2 Coord
+    isDrawing′ : Bool
+
+    zoomLevel′ : Int
+
+    needToClearTexture′ : Bool
+
+unquoteDecl
+  frameCount
+  nowFrame
+  frames
+  cursor
+  isDrawing
+  zoomLevel
+  needToClearTexture
+  = autoLens
+  ( frameCount
+  ∷ nowFrame
+  ∷ frames
+  ∷ cursor
+  ∷ isDrawing
+  ∷ zoomLevel
+  ∷ needToClearTexture
+  ∷ []) (quote DrawApp)
+
+emptyApp : ℕ → DrawApp
+emptyApp nFrames = record
+  { frameCount′ = nFrames
+  ; nowFrame′ = 0
+  ; frames′ = replicate nFrames []
+  ; cursor′ = mkV2 Ir0 Ir0
+  ; isDrawing′ = false
+  ; zoomLevel′ = I0
+  ; needToClearTexture′ = true
+  }
+
+modifyAt : ∀ {ℓ} {A : Set ℓ} (n : ℕ) (f : A → A) → List A → List A
+modifyAt n f [] = []
+modifyAt zero f (x ∷ l) = f x ∷ l
+modifyAt (suc n) f (x ∷ l) = x ∷ modifyAt n f l
+
+newShape : DrawApp → DrawApp
+newShape app =
+  let
+    zl = get zoomLevel app
+    fi = get nowFrame app
+  in
+    modify frames (modifyAt fi (mkStroke zl [] ∷_)) app
+
+appendShape : DrawApp → DrawApp
+appendShape app =
+  let
+    xy = get cursor app
+    fi = get nowFrame app
+  in
+    modify frames
+      (modifyAt fi (λ
+       { (mkStroke z ss ∷ shapes) → mkStroke z (xy ∷ ss) ∷ shapes
+       ; [] → [] -- TODO should never happen, eliminate
+       }))
+      app
 
 postulate
-  DrawApp : Set
-  isDrawing : DrawApp ፦ Bool
-  needToClearTexture : DrawApp ፦ Bool
-  nowFrame : DrawApp ፦ Int
-  frameCount : DrawApp ፦ Int
-  zoomLevel : DrawApp ፦ Int
-  cursor : DrawApp ፦ V2 Coord
-  newShape : DrawApp → DrawApp
-  appendShape : DrawApp → DrawApp
-  Stroke : Set
-  sPoints : Stroke ፦ List (V2 Coord)
-  sZoom : Stroke ፦ Int
   avgC : Coord → Coord → Coord
 
-{-# COMPILE GHC DrawApp = type DrawApp #-}
-{-# COMPILE GHC isDrawing = isDrawing #-}
-{-# COMPILE GHC needToClearTexture = needToClearTexture #-}
-{-# COMPILE GHC nowFrame = nowFrame #-}
-{-# COMPILE GHC frameCount = frameCount #-}
-{-# COMPILE GHC zoomLevel = zoomLevel #-}
-{-# COMPILE GHC cursor = cursor #-}
-{-# COMPILE GHC newShape = newShape #-}
-{-# COMPILE GHC appendShape = appendShape #-}
-{-# COMPILE GHC Stroke = type Stroke #-}
-{-# COMPILE GHC sPoints = sPoints #-}
-{-# COMPILE GHC sZoom = sZoom #-}
 {-# COMPILE GHC avgC = avg #-}
-
-Picture : Set
-Picture = List Stroke
 
 Triangles : Set
 Triangles = List (V2 Float)
 
 ToTriangles : Set
-ToTriangles = Int → Int → List Picture → Triangles
+ToTriangles = DrawApp → Triangles
 
 postulate
   everything :
-    ToTriangles →
-    GLFW.MouseCallback′ {Prim.IO ⊤} DrawApp →
-    GLFW.CursorCallback′ {Prim.IO ⊤} DrawApp →
-    GLFW.KeyCallback′ {Prim.IO ⊤} DrawApp →
+    ∀ {App : Set} →
+    (ℕ → App) →
+    (App → Triangles) →
+    (App → Bool) →
+    (App → App) →
+    (App → ℕ) →
+    GLFW.MouseCallback′ {Prim.IO ⊤} App →
+    GLFW.CursorCallback′ {Prim.IO ⊤} App →
+    GLFW.KeyCallback′ {Prim.IO ⊤} App →
     Prim.IO ⊤
   screenToGl : (w h : Int) (x y : Double) → V2 Coord
   wh : Int
@@ -110,7 +183,7 @@ postulate
   drawLine : Double → V2 Coord -> V2 Coord -> List (V2 Float)
   inductionOnIntAsNat : {A : Set} (z : A) (f : A → A) → Int → A
 
-{-# COMPILE GHC everything = everything #-}
+{-# COMPILE GHC everything = \ _ -> everything #-}
 {-# COMPILE GHC screenToGl = screenToGl #-}
 {-# COMPILE GHC wh = wh #-}
 {-# COMPILE GHC toZoom = toZoom #-}
@@ -153,13 +226,13 @@ keyCallback Key'Left _ _ _ app =
   let
     nFrames = get frameCount app
   in
-    modify nowFrame (_Imod nFrames ∘ Ipred)) app
+    modify nowFrame id) app
 keyCallback Key'Right _ _ _ app =
   (set needToClearTexture true ⟫
   let
     nFrames = get frameCount app
   in
-    modify nowFrame (_Imod nFrames ∘ Isuc)) app
+    modify nowFrame id) app
 keyCallback _ _ _ _ = id
 
 pic⇒triangles : Int → Picture → List (V2 Float)
@@ -249,10 +322,8 @@ interpolate : Int → Picture → Picture → List (V2 Float)
 interpolate zoom before after =
   pic⇒triangles zoom (map (uncurry iStrokes) (zip before after))
 
-toTriangles : ToTriangles
-toTriangles zoom n′ frames
-  with Int⇒ℕ n′
-...  | n
+toTriangles′ : Int → ℕ → List Picture → Triangles
+toTriangles′ zoom n frames
   with drop n frames
 ...  | [] = []
 ...  | frame ∷ tail
@@ -260,8 +331,19 @@ toTriangles zoom n′ frames
 ...  | [] = uncurry (interpolate zoom) (getAround frame n frames)
 ...  | _ ∷ _ = pic⇒triangles zoom frame
 
+toTriangles : ToTriangles
+toTriangles x = toTriangles′
+  (get zoomLevel x) -- -256
+  (get nowFrame x)
+  (get frames x)
+
 main = run $ do
-  lift $ everything toTriangles
+  lift $ everything
+    emptyApp
+    toTriangles
+    (get needToClearTexture)
+    (set needToClearTexture false)
+    (get nowFrame)
     (mouseCallbackWrap mouseCallback)
     (cursorCallbackWrap cursorCallback)
     (keyCallbackWrap keyCallback)
