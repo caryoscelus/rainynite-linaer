@@ -130,7 +130,7 @@ mouseCallback button MouseButtonState'Pressed mods =
 mouseCallback button _ mods = set isDrawing false
 
 cursorCallback : GLFW.CursorCallback DrawApp
-cursorCallback app x y =
+cursorCallback x y app =
   (set cursor (screenToGl wh wh x y) ⟫ λ app →
   let
     draw = get isDrawing app
@@ -141,24 +141,26 @@ Int⇒ℕ : Int → ℕ
 Int⇒ℕ = inductionOnIntAsNat zero suc
 
 keyCallback : GLFW.KeyCallback DrawApp
-keyCallback app _ _ KeyState'Released _ = app
-keyCallback app Key'Equal _ _ _ =
-  (set needToClearTexture true ⟫ modify zoomLevel Isuc) app
-keyCallback app Key'Minus _ _ _ =
-  (set needToClearTexture true ⟫ modify zoomLevel Ipred) app
-keyCallback app Key'Left _ _ _ =
+keyCallback _ _ KeyState'Released _ = id
+keyCallback Key'Equal _ _ _ =
+  set needToClearTexture true ⟫
+  modify zoomLevel Isuc
+keyCallback Key'Minus _ _ _ =
+  set needToClearTexture true ⟫
+  modify zoomLevel Ipred
+keyCallback Key'Left _ _ _ app =
   (set needToClearTexture true ⟫
   let
     nFrames = get frameCount app
   in
     modify nowFrame (_Imod nFrames ∘ Ipred)) app
-keyCallback app Key'Right _ _ _ =
+keyCallback Key'Right _ _ _ app =
   (set needToClearTexture true ⟫
   let
     nFrames = get frameCount app
   in
     modify nowFrame (_Imod nFrames ∘ Isuc)) app
-keyCallback app _ _ _ _ = app
+keyCallback _ _ _ _ = id
 
 pic⇒triangles : Int → Picture → List (V2 Float)
 pic⇒triangles zoom = foldr addStroke []

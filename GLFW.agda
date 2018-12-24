@@ -53,9 +53,8 @@ mouseCallbackWrap f modApp button state mods =
 
 CursorCallback : Set → Set
 CursorCallback App =
-  (app : App)
   (x y : Double)
-  → App
+  → App → App
 
 CursorCallback′ : {M : Set} → Set → Set
 CursorCallback′ {M} App =
@@ -65,16 +64,15 @@ CursorCallback′ {M} App =
 
 cursorCallbackWrap :
   ∀ {M App} → CursorCallback App → CursorCallback′ {M} App
-cursorCallbackWrap f modApp x y = modApp (λ app → f app x y)
+cursorCallbackWrap f modApp x y = modApp (f x y)
 
 KeyCallback : Set → Set
 KeyCallback App =
-  (app : App)
   (key : Key)
   (scancode : Int)
   (state : KeyState)
   (mods : ModifierKeys)
-  → App
+  → App → App
 
 KeyCallback′ : {M : Set} → Set → Set
 KeyCallback′ {M} App =
@@ -88,4 +86,4 @@ KeyCallback′ {M} App =
 keyCallbackWrap :
   ∀ {M App} → KeyCallback App → KeyCallback′ {M} App
 keyCallbackWrap f modApp key scancode state mods = modApp
-  (λ app → f app key scancode state mods)
+  (f key scancode state mods)
