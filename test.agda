@@ -38,7 +38,7 @@ open import Function
 open import Hask
 open import FCLabels
 import GLFW
-open import Keys
+open GLFW.Types
 
 {-# FOREIGN GHC
   import T

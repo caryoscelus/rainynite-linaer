@@ -20,7 +20,9 @@ module GLFW where
 open import Data.Bool
 
 open import Hask
-open import Keys
+import GLFW.Types as Types′
+module Types = Types′
+open Types
 
 {-# FOREIGN GHC import Graphics.GPipe.Context.GLFW #-}
   
