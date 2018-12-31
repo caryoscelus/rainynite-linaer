@@ -18,9 +18,16 @@
 open import Data.Empty
 open import Data.Unit
 open import Data.Nat
+open import Data.Nat.Show renaming (show to ℕ-show)
 open import Data.List
+open import Data.Maybe using
+  ( Maybe ; just ; nothing )
 open import Data.String using (String)
 open import Function
+import Relation.Binary as Bin
+open import Relation.Nullary using (Dec ; yes ; no)
+open import Relation.Binary.PropositionalEquality using
+  ( _≡_ ; refl )
 import Reflection as R
 
 record _፦_ {ℓ} (A B : Set ℓ) : Set ℓ where
@@ -39,12 +46,44 @@ private
   _>>_ : ∀ {ℓ} {A : Set ℓ} → R.TC ⊤ → R.TC A → R.TC A
   a >> b = a >>= (λ { tt → b })
   pure = R.returnTC
+  
+  strError : String → R.TC ⊤
+  strError msg = R.typeError [ R.strErr msg ]
+
+
+find :
+  ∀ {ℓ} {A : Set ℓ} {P : A → Set ℓ}
+  (p : (x : A) → Dec (P x)) (xs : List A)
+  → Maybe A
+find p xs
+  with filter p xs
+...  | [] = nothing
+...  | y ∷ _ = just y
+
+find-index :
+  ∀ {ℓ} {A : Set ℓ} {P : A → Set ℓ}
+  (p : (x : A) → Dec (P x)) (xs : List A)
+  → Maybe ℕ
+find-index = find-index′ 0
+  where
+  find-index′ :
+    ∀ {ℓ} {A : Set ℓ} {P : A → Set ℓ}
+    (n : ℕ) (p : (x : A) → Dec (P x)) (xs : List A)
+    → Maybe ℕ
+  find-index′ n p [] = nothing
+  find-index′ n p (x ∷ xs)
+    with p x
+  ...  | yes _ = just n
+  ...  | no _ = find-index′ (suc n) p xs
+
+-- could be a lens if we'd have a proof list is long enough
+mod-at : ∀ {ℓ} {A : Set ℓ} (n : ℕ) (f : A → A) → List A → List A
+mod-at n f [] = []
+mod-at zero f (x ∷ xs) = f x ∷ xs
+mod-at (suc n) f (x ∷ xs) = x ∷ mod-at n f xs
 
 module _ where
   open R
-
-  strError : String → TC ⊤
-  strError msg = typeError [ strErr msg ]
 
   autoLens′ :
     (skipped : ℕ)
@@ -56,8 +95,6 @@ module _ where
   autoLens′ _ [] _ _ (_ ∷ _) = strError "not enough lens names"
   autoLens′ _ (_ ∷ _) _ _ [] = strError "not enough field names"
   autoLens′ skipped (lens-name ∷ names) rec c (arg i f-name ∷ fs) = do
-    (function cs) ← getDefinition f-name
-      where _ → typeError [ strErr "something else" ]
     declareDef
       (arg (arg-info visible relevant) lens-name)
       (def (quote _፦_)
@@ -110,6 +147,60 @@ module _ where
       where other → strError "not a record"
     autoLens′ 0 names rec c fields
 
+  macro
+    sett : (field-name : Name) (hole : Term) → TC ⊤
+    sett field-name hole = do
+      pi (arg i (def rec-name rec-args)) (abs _ b) ← getType field-name
+        where
+          t → typeError $ strErr "Non-function type" ∷ termErr t ∷ []
+      record′ con-name fields ← getDefinition rec-name
+        where
+          d → strError "nopy"
+      let
+        n = length fields
+        field-names = map (λ { (arg i x) → x}) fields
+        r-type = def rec-name rec-args
+        r-type-arg = arg i r-type
+      just k ← pure $ find-index (_≟-Name field-name) field-names
+        where
+          nothing → typeError $
+            strErr "Field name not found" ∷ nameErr field-name ∷ []
+      let
+        all-args : List (Arg Term)
+        all-args = mod-at k (λ { (arg i x) → arg i (var n [])}) $ zipWith
+          (λ { m (arg i x) → arg i (var m [])})
+          (downFrom n)
+          fields
+        all-pats : List (Arg Pattern)
+        all-pats = map (λ { (arg i x) → arg i (var (showName x))}) fields
+      set-name ← freshName "set"
+      declareDef
+        (arg (arg-info visible relevant) set-name)
+        (pi (arg (arg-info visible relevant) b) (abs "y"
+          (pi r-type-arg (abs "x" r-type))))
+      defineFun set-name
+        [ clause
+          ( arg (arg-info visible relevant)
+            (var "y")
+          ∷ arg (arg-info visible relevant)
+            (con con-name all-pats)
+          ∷ [] -- ↓ ↓ ↓
+          ) (con con-name all-args) ]
+      unify hole (def set-name [])
+
+module _ where
+  private
+    record SingleNat : Set where
+      constructor wrapNat
+      field
+        wrapped : ℕ
+    open SingleNat
+
+    t : SingleNat
+    t = sett wrapped 30 (wrapNat 305)
+
+    t-ok : t ≡ wrapNat 30
+    t-ok = refl
 
 private
   record SingleNat : Set where
