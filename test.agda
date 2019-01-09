@@ -15,6 +15,8 @@
  -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
  --}
 
+{-# OPTIONS --safe --without-K #-}
+
 module test where
 
 open import Data.Empty
@@ -42,22 +44,7 @@ import GLFW
 open GLFW.Types
 
 open import NanoLens
-
-{-# FOREIGN GHC
-  import T
-  import Strokes
-  import Linear.V2
-  #-}
-
-record V2 (A : Set) : Set where
-  constructor v2
-  field
-    x y : A
-
-{-# COMPILE GHC V2 = data V2 (V2) #-}
-
-Coord = ℤ.ℤ
-Point = V2 Coord
+open import GLApp
 
 record Stroke : Set where
   constructor mkStroke
@@ -95,29 +82,6 @@ emptyApp nFrames = record
   ; needToClearTexture = true
   }
 
-Triangles : Set
-Triangles = List (V2 Float)
-
-record DrawApp (App : Set) : Set where
-  field
-    empty : App
-    render : App → Triangles
-    
-    frameCount : App → ℕ
-    nowFrame : App → ℕ
-    
-    dontClearTexture : App → App
-    getNeedToClearTexture : App → Bool
-
-    mouseCallback : GLFW.MouseCallback′ {Prim.IO ⊤} App
-    cursorCallback : GLFW.CursorCallback′ {Prim.IO ⊤} App
-    keyCallback : GLFW.KeyCallback′ {Prim.IO ⊤} App
-
-{-# COMPILE GHC DrawApp = data DrawApp (DrawApp) #-}
-
-ToTriangles : Set
-ToTriangles = AllApp → Triangles
-
 modifyAt : ∀ {ℓ} {A : Set ℓ} (n : ℕ) (f : A → A) → List A → List A
 modifyAt n f [] = []
 modifyAt zero f (x ∷ l) = f x ∷ l
@@ -143,24 +107,6 @@ appendShape app =
        ; [] → [] -- TODO should never happen, eliminate
        }))
       app
-
-postulate
-  avgC : Coord → Coord → Coord
-
-{-# COMPILE GHC avgC = avg #-}
-
-postulate
-  everything : ∀ {App} → DrawApp App → Prim.IO ⊤
-  screenToGl : (w h : Int) (x y : Double) → V2 Coord
-  wh : Int
-  toZoom : Int → Int → Double
-  drawLine : Double → V2 Coord -> V2 Coord -> List (V2 Float)
-
-{-# COMPILE GHC everything = \ _ -> everything #-}
-{-# COMPILE GHC screenToGl = screenToGl #-}
-{-# COMPILE GHC wh = wh #-}
-{-# COMPILE GHC toZoom = toZoom #-}
-{-# COMPILE GHC drawLine = drawLine #-}
 
 _⟫_ : ∀ {ℓ} {A B C : Set ℓ} (F : A → B) (G : B → C) → (A → C)
 _⟫_ = flip _∘′_
@@ -306,7 +252,7 @@ toTriangles′ zoom n frames
 ...  | [] = uncurry (interpolate zoom) (getAround frame n frames)
 ...  | _ ∷ _ = pic⇒triangles zoom frame
 
-toTriangles : ToTriangles
+toTriangles : AllApp → Triangles
 toTriangles x = toTriangles′
   (zoomLevel x) -- -256
   (nowFrame x)
