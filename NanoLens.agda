@@ -148,19 +148,65 @@ module _ where
     autoLens′ 0 names rec c fields
 
   module _ where
+    open import Data.Product using (_×_ ; _,_)
+    
+
+    getGoodType :
+      (type : Type)
+      → TC ((Type → Type) × Name × List (Arg Term) × Type)
+    getGoodType (pi (arg i (def rec-name rec-args)) (abs _ b)) =
+      pure (id , rec-name , rec-args , b)
+    getGoodType (pi (arg i x) (abs n b)) = do
+      (pre-args , rec-name , rec-args , final) ← getGoodType b
+      pure (pi (arg i x) ∘ abs n ∘ pre-args , rec-name , rec-args , final)
+    getGoodType t = typeError $ strErr "Non-function type" ∷ termErr t ∷ []
+
+    {-# TERMINATING #-}
+    mapVars : (ℕ → ℕ) → Term → Term
+    mapVarsArg : (ℕ → ℕ) → Arg Term → Arg Term
+
+    mapVars fn (con c args) = con c (map (mapVarsArg fn) args)
+    mapVars fn (def f args) = def f (map (mapVarsArg fn) args)
+    mapVars fn (lam v (abs s x)) = lam v (abs s (mapVars fn x))
+    mapVars fn (pat-lam cs args) = pat-lam cs (map (mapVarsArg fn) args) -- !
+    mapVars fn (pi a (abs s x)) =
+      pi (mapVarsArg fn a) (abs s (mapVars fn x))
+    mapVars fn (sort s) = sort s
+    mapVars fn (lit l) = lit l
+    mapVars fn (meta m args) = meta m (map (mapVarsArg fn) args)
+    mapVars fn unknown = unknown
+    mapVars fn (var m args) = var (fn m) (map (mapVarsArg fn) args)
+  
+    mapVarsArg fn (arg i x) = arg i (mapVars fn x)
+
+    bumpVars : ℕ → Term → Term
+    bumpVars n = mapVars (_+ n)
+    bumpVarsArg : ℕ → Arg Term → Arg Term
+    bumpVarsArg n = mapVarsArg (_+ n)
+
+    -- this isn't totally safe, though
+    dropVars : ℕ → Term → Term
+    dropVars n = mapVars (_∸ n)
+
     make-sett : (field-name : Name) → TC Name
     make-sett field-name = do
-      pi (arg i (def rec-name rec-args)) (abs _ b) ← getType field-name
-        where
-          t → typeError $ strErr "Non-function type" ∷ termErr t ∷ []
+      type ← getType field-name
+      (pre-arguments , rec-name , rec-args , final) ← getGoodType type
+
       record′ con-name fields ← getDefinition rec-name
         where
-          d → strError "nopy"
+          d → strError "not a record definition"
+
       let
         n = length fields
         field-names = map (λ { (arg i x) → x}) fields
-        r-type = def rec-name rec-args
-        r-type-arg = arg i r-type
+
+        rel-arg = arg (arg-info visible relevant)
+        set-type = pre-arguments
+          (pi (rel-arg (dropVars 1 final)) (abs "y"
+            (pi (rel-arg (def rec-name (map (bumpVarsArg 1) rec-args))) (abs "x"
+              (def rec-name (map (bumpVarsArg 2) rec-args))))))
+
       just k ← pure $ find-index (_≟-Name field-name) field-names
         where
           nothing → typeError $
@@ -175,10 +221,10 @@ module _ where
         all-pats = map (λ { (arg i x) → arg i (var (showName x))}) fields
 
       set-name ← freshName "set"
+      
       declareDef
         (arg (arg-info visible relevant) set-name)
-        (pi (arg (arg-info visible relevant) b) (abs "y"
-          (pi r-type-arg (abs "x" r-type))))
+        set-type
       defineFun set-name
         [ clause
           ( arg (arg-info visible relevant)
@@ -253,8 +299,17 @@ module _ where
     pts : ℕ × ℕ
     pts = 3 , 10
 
-    -- pkk : ℕ × ℕ
-    -- pkk = {!sett fst 12 pts !}
+    pkk : ℕ × ℕ
+    pkk = sett fst 12 pts
+
+    pkk-ok : pkk ≡ (12 , 10)
+    pkk-ok = refl
+
+    pkk′ : ℕ × ℕ
+    pkk′ = set ፦[ snd ] 155 pts
+
+    pkk′-ok : pkk′ ≡ (3 , 155)
+    pkk′-ok = refl
 
 private
   record SingleNat : Set where
