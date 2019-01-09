@@ -1,5 +1,5 @@
 {-- test.agda - playing with agda/haskell interop
- -- Copyright (C) 2018 caryoscelus
+ -- Copyright (C) 2018-2019 caryoscelus
  --
  -- This program is free software: you can redistribute it and/or modify
  -- it under the terms of the GNU General Public License as published by
@@ -73,59 +73,37 @@ Point = V2 Coord
 record Stroke : Set where
   constructor mkStroke
   field
-    sZoom′ : Int
-    sPoints′ : List Point
+    sZoom : Int
+    sPoints : List Point
 
-unquoteDecl
-  sZoom
-  sPoints
-  = autoLens
-  ( sZoom
-  ∷ sPoints
-  ∷ []) (quote Stroke)
+open Stroke
 
 Picture = List Stroke
 
 record DrawApp : Set where
   field
-    frameCount′ : ℕ
-    nowFrame′ : ℕ
-    frames′ : List Picture
+    frameCount : ℕ
+    nowFrame : ℕ
+    frames : List Picture
 
-    cursor′ : V2 Coord
-    isDrawing′ : Bool
+    cursor : V2 Coord
+    isDrawing : Bool
 
-    zoomLevel′ : Int
+    zoomLevel : Int
 
-    needToClearTexture′ : Bool
+    needToClearTexture : Bool
 
-unquoteDecl
-  frameCount
-  nowFrame
-  frames
-  cursor
-  isDrawing
-  zoomLevel
-  needToClearTexture
-  = autoLens
-  ( frameCount
-  ∷ nowFrame
-  ∷ frames
-  ∷ cursor
-  ∷ isDrawing
-  ∷ zoomLevel
-  ∷ needToClearTexture
-  ∷ []) (quote DrawApp)
+open DrawApp
 
 emptyApp : ℕ → DrawApp
 emptyApp nFrames = record
-  { frameCount′ = nFrames
-  ; nowFrame′ = 0
-  ; frames′ = replicate nFrames []
-  ; cursor′ = mkV2 Ir0 Ir0
-  ; isDrawing′ = false
-  ; zoomLevel′ = I0
-  ; needToClearTexture′ = true
+  { frameCount = nFrames
+  ; nowFrame = 0
+  ; frames = replicate nFrames []
+  ; cursor = mkV2 Ir0 Ir0
+  ; isDrawing = false
+  ; zoomLevel = I0
+  ; needToClearTexture = true
   }
 
 modifyAt : ∀ {ℓ} {A : Set ℓ} (n : ℕ) (f : A → A) → List A → List A
@@ -136,18 +114,18 @@ modifyAt (suc n) f (x ∷ l) = x ∷ modifyAt n f l
 newShape : DrawApp → DrawApp
 newShape app =
   let
-    zl = get zoomLevel app
-    fi = get nowFrame app
+    zl = zoomLevel app
+    fi = nowFrame app
   in
-    modify frames (modifyAt fi (mkStroke zl [] ∷_)) app
+    modify ፦[ frames ] (modifyAt fi (mkStroke zl [] ∷_)) app
 
 appendShape : DrawApp → DrawApp
 appendShape app =
   let
-    xy = get cursor app
-    fi = get nowFrame app
+    xy = cursor app
+    fi = nowFrame app
   in
-    modify frames
+    modify ፦[ frames ]
       (modifyAt fi (λ
        { (mkStroke z ss ∷ shapes) → mkStroke z (xy ∷ ss) ∷ shapes
        ; [] → [] -- TODO should never happen, eliminate
@@ -199,14 +177,14 @@ when′ true f = f
 
 mouseCallback : GLFW.MouseCallback DrawApp
 mouseCallback button MouseButtonState'Pressed mods =
-  set isDrawing true ⟫ newShape
-mouseCallback button _ mods = set isDrawing false
+  set ፦[ isDrawing ] true ⟫ newShape
+mouseCallback button _ mods = set ፦[ isDrawing ] false
 
 cursorCallback : GLFW.CursorCallback DrawApp
 cursorCallback x y app =
-  (set cursor (screenToGl wh wh x y) ⟫ λ app →
+  (set ፦[ cursor ] (screenToGl wh wh x y) ⟫ λ app →
   let
-    draw = get isDrawing app
+    draw = isDrawing app
   in
     when′ draw appendShape app) app
 
@@ -216,23 +194,23 @@ Int⇒ℕ = inductionOnIntAsNat zero suc
 keyCallback : GLFW.KeyCallback DrawApp
 keyCallback _ _ KeyState'Released _ = id
 keyCallback Key'Equal _ _ _ =
-  set needToClearTexture true ⟫
-  modify zoomLevel Isuc
+  set ፦[ needToClearTexture ] true ⟫
+  modify ፦[ zoomLevel ] Isuc
 keyCallback Key'Minus _ _ _ =
-  set needToClearTexture true ⟫
-  modify zoomLevel Ipred
+  set ፦[ needToClearTexture ] true ⟫
+  modify ፦[ zoomLevel ] Ipred
 keyCallback Key'Left _ _ _ app =
-  (set needToClearTexture true ⟫
+  (set ፦[ needToClearTexture ] true ⟫
   let
-    nFrames = get frameCount app
+    nFrames = frameCount app
   in
-    modify nowFrame id) app
+    modify ፦[ nowFrame ] id) app
 keyCallback Key'Right _ _ _ app =
-  (set needToClearTexture true ⟫
+  (set ፦[ needToClearTexture ] true ⟫
   let
-    nFrames = get frameCount app
+    nFrames = frameCount app
   in
-    modify nowFrame id) app
+    modify ፦[ nowFrame ] id) app
 keyCallback _ _ _ _ = id
 
 pic⇒triangles : Int → Picture → List (V2 Float)
@@ -242,8 +220,8 @@ pic⇒triangles zoom = foldr addStroke []
       (stroke : Stroke) (vertices : List (V2 Float)) → List (V2 Float)
     addStroke stroke =
       let
-        sp = get sPoints stroke
-        q = toZoom zoom (get sZoom stroke)
+        sp = sPoints stroke
+        q = toZoom zoom (sZoom stroke)
         ss = zip sp (drop 1 sp)
       in
         concat (map (uncurry (drawLine q)) ss) ++_
@@ -316,7 +294,7 @@ module _ where
 
 -- UGH ; ignoring zoom ; ...
 iStrokes : Stroke → Stroke → Stroke
-iStrokes a b = modify sPoints (doIt (get sPoints b)) a
+iStrokes a b = modify ፦[ sPoints ] (doIt (sPoints b)) a
 
 interpolate : Int → Picture → Picture → List (V2 Float)
 interpolate zoom before after =
@@ -333,17 +311,17 @@ toTriangles′ zoom n frames
 
 toTriangles : ToTriangles
 toTriangles x = toTriangles′
-  (get zoomLevel x) -- -256
-  (get nowFrame x)
-  (get frames x)
+  (zoomLevel x) -- -256
+  (nowFrame x)
+  (frames x)
 
 main = run $ do
   lift $ everything
     emptyApp
     toTriangles
-    (get needToClearTexture)
-    (set needToClearTexture false)
-    (get nowFrame)
+    (get ፦[ needToClearTexture ])
+    (set ፦[ needToClearTexture ] false)
+    (get ፦[ nowFrame ])
     (mouseCallbackWrap mouseCallback)
     (cursorCallbackWrap cursorCallback)
     (keyCallbackWrap keyCallback)
