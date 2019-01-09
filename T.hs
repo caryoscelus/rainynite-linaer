@@ -82,19 +82,22 @@ penColor = V3 0.5 0.5 0.5
 v2to4 :: Num i => V2 i -> V4 i
 v2to4 (V2 x y) = V4 x y 0 1
 
-proceedRender
-  toTriangles
-  hasToClearTexture
-  dontClearTexture
-  app
-  clearTex
-  shader
-  tex
-  = do
-  when (hasToClearTexture app) $ clearTex tex
+type DrawTriangles = [ (V2 Float) ]
+
+data DrawApp app = DrawApp
+  { emptyApp :: app
+  , renderApp :: app -> DrawTriangles
+  , frameCount :: app -> Integer
+  , nowFrame :: app -> Integer
+  , dontClearTexture :: app -> app
+  , getNeedToClearTexture :: app -> Bool
+  }
+
+proceedRender drawApp app clearTex shader tex = do
+  when (getNeedToClearTexture drawApp  app) $ clearTex tex
   let
-    app' = dontClearTexture app
-    lines = toTriangles app
+    app' = dontClearTexture drawApp app
+    lines = renderApp drawApp app
   lineBuff :: Buffer os (B4 Float, B3 Float) <- newBuffer (length lines)
   unless (lines == []) $
     writeBuffer lineBuff 0 (fmap (\xy -> (v2to4 xy , penColor)) lines)
@@ -106,17 +109,11 @@ proceedRender
   pure app'
 
 everything
-  emptyApp
-  toTriangles
-  hasToClearTexture
-  dontClearTexture
-  getCurrentFrame
-  getFrameCount
+  drawApp
   mouseCallback
   cursorCallback
   keyCallback
   = runContextT GLFW.defaultHandleConfig $ do
-
   let
     void = minBound :: Word32
     clearTex t = do
@@ -125,11 +122,12 @@ everything
     allColors = V3 True True True
     wCfg = (GLFW.defaultWindowConfig "rainynite-linaer")
         { GLFW.configWidth = wh , GLFW.configHeight = wh }
+    eApp = emptyApp drawApp
 
-  app <- liftIO $ newIORef emptyApp
+  app <- liftIO $ newIORef eApp
 
   frameTextures <-
-    sequence . replicate (fromIntegral $ getFrameCount emptyApp) $ newTexture2D RGB8 (V2 wh wh) 1
+    sequence . replicate (fromIntegral $ frameCount drawApp eApp) $ newTexture2D RGB8 (V2 wh wh) 1
 
   win <- newWindow (WindowFormatColor RGB8) wCfg
 
@@ -153,12 +151,11 @@ everything
 
   foreverTil (fromMaybe False <$> GLFW.windowShouldClose win) $ do
     appVal <- liftIO $ readIORef app
-    fi <- liftIO $ getCurrentFrame <$> readIORef app
+    fi <- liftIO $ nowFrame drawApp <$> readIORef app
 
     let nowTex = frameTextures !! fromIntegral fi
 
-    appVal' <- proceedRender
-      toTriangles hasToClearTexture dontClearTexture appVal clearTex brushTexShader nowTex
+    appVal' <- proceedRender drawApp appVal clearTex brushTexShader nowTex
     liftIO $ writeIORef app appVal'
 
     -- put that onto window

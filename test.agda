@@ -81,22 +81,22 @@ open Stroke
 
 Picture = List Stroke
 
-record DrawApp : Set where
+record AllApp : Set where
   field
-    frameCount : ℕ
-    nowFrame : ℕ
     frames : List Picture
 
+    zoomLevel : Int
     cursor : V2 Coord
     isDrawing : Bool
-
-    zoomLevel : Int
+    
+    nowFrame : ℕ
+    frameCount : ℕ
 
     needToClearTexture : Bool
 
-open DrawApp
+open AllApp
 
-emptyApp : ℕ → DrawApp
+emptyApp : ℕ → AllApp
 emptyApp nFrames = record
   { frameCount = nFrames
   ; nowFrame = 0
@@ -107,12 +107,31 @@ emptyApp nFrames = record
   ; needToClearTexture = true
   }
 
+Triangles : Set
+Triangles = List (V2 Float)
+
+record DrawApp (App : Set) : Set where
+  field
+    empty : App
+    render : App → Triangles
+    
+    frameCount : App → ℕ
+    nowFrame : App → ℕ
+    
+    dontClearTexture : App → App
+    getNeedToClearTexture : App → Bool
+
+{-# COMPILE GHC DrawApp = data DrawApp (DrawApp) #-}
+
+ToTriangles : Set
+ToTriangles = AllApp → Triangles
+
 modifyAt : ∀ {ℓ} {A : Set ℓ} (n : ℕ) (f : A → A) → List A → List A
 modifyAt n f [] = []
 modifyAt zero f (x ∷ l) = f x ∷ l
 modifyAt (suc n) f (x ∷ l) = x ∷ modifyAt n f l
 
-newShape : DrawApp → DrawApp
+newShape : AllApp → AllApp
 newShape app =
   let
     zl = zoomLevel app
@@ -120,7 +139,7 @@ newShape app =
   in
     modify ፦[ frames ] (modifyAt fi (mkStroke zl [] ∷_)) app
 
-appendShape : DrawApp → DrawApp
+appendShape : AllApp → AllApp
 appendShape app =
   let
     xy = cursor app
@@ -138,21 +157,10 @@ postulate
 
 {-# COMPILE GHC avgC = avg #-}
 
-Triangles : Set
-Triangles = List (V2 Float)
-
-ToTriangles : Set
-ToTriangles = DrawApp → Triangles
-
 postulate
   everything :
     ∀ {App : Set} →
-    App →
-    (App → Triangles) →
-    (App → Bool) →
-    (App → App) →
-    (App → ℕ) →
-    (App → ℕ) →
+    DrawApp App →
     GLFW.MouseCallback′ {Prim.IO ⊤} App →
     GLFW.CursorCallback′ {Prim.IO ⊤} App →
     GLFW.KeyCallback′ {Prim.IO ⊤} App →
@@ -177,12 +185,12 @@ when′ : ∀ {ℓ} {A : Set ℓ} (cond : Bool) → (A → A) → (A → A)
 when′ false _ = id
 when′ true f = f
 
-mouseCallback : GLFW.MouseCallback DrawApp
+mouseCallback : GLFW.MouseCallback AllApp
 mouseCallback button MouseButtonState'Pressed mods =
   set ፦[ isDrawing ] true ⟫ newShape
 mouseCallback button _ mods = set ፦[ isDrawing ] false
 
-cursorCallback : GLFW.CursorCallback DrawApp
+cursorCallback : GLFW.CursorCallback AllApp
 cursorCallback x y app =
   (set ፦[ cursor ] (screenToGl wh wh x y) ⟫ λ app →
   let
@@ -203,7 +211,7 @@ loopFrameRight m n
 ...  | yes _ = suc n
 ...  | no _  = 0
 
-keyCallback : GLFW.KeyCallback DrawApp
+keyCallback : GLFW.KeyCallback AllApp
 keyCallback _ _ KeyState'Released _ = id
 keyCallback Key'Equal _ _ _ =
   set ፦[ needToClearTexture ] true ⟫
@@ -325,14 +333,19 @@ toTriangles x = toTriangles′
 
 defaultFrameCount = 24
 
+drawApp : DrawApp AllApp
+drawApp = record
+  { empty = emptyApp defaultFrameCount
+  ; render = toTriangles
+  ; frameCount = frameCount
+  ; nowFrame = nowFrame
+  ; dontClearTexture = set ፦[ needToClearTexture ] false
+  ; getNeedToClearTexture = needToClearTexture
+  }
+
 main = run $ do
   lift $ everything
-    (emptyApp defaultFrameCount)
-    toTriangles
-    (get ፦[ needToClearTexture ])
-    (set ፦[ needToClearTexture ] false)
-    (get ፦[ nowFrame ])
-    (get ፦[ frameCount ])
+    drawApp
     (mouseCallbackWrap mouseCallback)
     (cursorCallbackWrap cursorCallback)
     (keyCallbackWrap keyCallback)
