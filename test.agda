@@ -28,6 +28,7 @@ open import Data.Product hiding (map ; zip)
 import Data.Product as P
 open import Data.List
 open import Relation.Binary.PropositionalEquality
+open import Relation.Nullary
 open import Relation.Nullary.Decidable hiding (map)
 
 import IO.Primitive as Prim
@@ -191,6 +192,16 @@ cursorCallback x y app =
 Int⇒ℕ : Int → ℕ
 Int⇒ℕ = inductionOnIntAsNat zero suc
 
+loopFrameLeft : ℕ → ℕ → ℕ
+loopFrameLeft m zero = pred m
+loopFrameLeft m (suc n) = n
+
+loopFrameRight : ℕ → ℕ → ℕ
+loopFrameRight m n
+  with suc n <? m
+...  | yes _ = suc n
+...  | no _  = 0
+
 keyCallback : GLFW.KeyCallback DrawApp
 keyCallback _ _ KeyState'Released _ = id
 keyCallback Key'Equal _ _ _ =
@@ -200,17 +211,13 @@ keyCallback Key'Minus _ _ _ =
   set ፦[ needToClearTexture ] true ⟫
   modify ፦[ zoomLevel ] Ipred
 keyCallback Key'Left _ _ _ app =
-  (set ፦[ needToClearTexture ] true ⟫
-  let
-    nFrames = frameCount app
-  in
-    modify ፦[ nowFrame ] id) app
+  ( set ፦[ needToClearTexture ] true
+  ⟫ modify ፦[ nowFrame ] (loopFrameLeft (frameCount app))
+  ) app
 keyCallback Key'Right _ _ _ app =
-  (set ፦[ needToClearTexture ] true ⟫
-  let
-    nFrames = frameCount app
-  in
-    modify ፦[ nowFrame ] id) app
+  ( set ፦[ needToClearTexture ] true
+  ⟫ modify ፦[ nowFrame ] (loopFrameRight (frameCount app))
+  ) app
 keyCallback _ _ _ _ = id
 
 pic⇒triangles : Int → Picture → List (V2 Float)
