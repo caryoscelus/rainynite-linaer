@@ -48,25 +48,12 @@ open import NanoLens
   import Linear.V2
   #-}
 
-postulate
-  V2 : Set → Set
-  mkV2 : ∀ {A} → A → A → V2 A
-  v2x : ∀ {A} → V2 A → A
-  v2y : ∀ {A} → V2 A → A
+record V2 (A : Set) : Set where
+  constructor v2
+  field
+    x y : A
 
-{-# COMPILE GHC V2 = type V2 #-}
-{-# COMPILE GHC mkV2 = \ _ -> V2 #-}
-{-# COMPILE GHC v2x = \ _ (V2 x _) -> x #-}
-{-# COMPILE GHC v2y = \ _ (V2 _ y) -> y #-}
-
-፦x : ∀ {A} → V2 A ፦ A
-፦y : ∀ {A} → V2 A ፦ A
-
-get ፦x = v2x
-set ፦x x xy = mkV2 x (get ፦y xy)
-
-get ፦y = v2y
-set ፦y y xy = mkV2 (get ፦x xy) y
+{-# COMPILE GHC V2 = data V2 (V2) #-}
 
 Coord = Integer
 Point = V2 Coord
@@ -101,7 +88,7 @@ emptyApp nFrames = record
   { frameCount = nFrames
   ; nowFrame = 0
   ; frames = replicate nFrames []
-  ; cursor = mkV2 Ir0 Ir0
+  ; cursor = v2 Ir0 Ir0
   ; isDrawing = false
   ; zoomLevel = I0
   ; needToClearTexture = true
@@ -269,9 +256,9 @@ module _ where
       P.map kk kk (pred n , suc n)
 
   v2avg : V2 Coord → V2 Coord → V2 Coord
-  v2avg a b = mkV2
-    (avgC (get ፦x a) (get ፦x b))
-    (avgC (get ፦y a) (get ፦y b))
+  v2avg a b = v2
+    (avgC (V2.x a) (V2.x b))
+    (avgC (V2.y a) (V2.y b))
 
   sample-at :
     ∀ {m} (n : ℕ)
