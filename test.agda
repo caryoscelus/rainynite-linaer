@@ -147,10 +147,11 @@ ToTriangles = DrawApp → Triangles
 postulate
   everything :
     ∀ {App : Set} →
-    (ℕ → App) →
+    App →
     (App → Triangles) →
     (App → Bool) →
     (App → App) →
+    (App → ℕ) →
     (App → ℕ) →
     GLFW.MouseCallback′ {Prim.IO ⊤} App →
     GLFW.CursorCallback′ {Prim.IO ⊤} App →
@@ -322,13 +323,16 @@ toTriangles x = toTriangles′
   (nowFrame x)
   (frames x)
 
+defaultFrameCount = 24
+
 main = run $ do
   lift $ everything
-    emptyApp
+    (emptyApp defaultFrameCount)
     toTriangles
     (get ፦[ needToClearTexture ])
     (set ፦[ needToClearTexture ] false)
     (get ፦[ nowFrame ])
+    (get ፦[ frameCount ])
     (mouseCallbackWrap mouseCallback)
     (cursorCallbackWrap cursorCallback)
     (keyCallbackWrap keyCallback)

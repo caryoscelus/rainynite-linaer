@@ -72,8 +72,6 @@ drawLine q a' b' =
 
 wh = 512
 
-defaultFrameCount = 24
-
 screenToGl :: Int -> Int -> Double -> Double -> V2 Coord
 screenToGl w h x y = V2
   (- fromIntegral w `div` 2 + floor x)
@@ -113,13 +111,13 @@ everything
   hasToClearTexture
   dontClearTexture
   getCurrentFrame
+  getFrameCount
   mouseCallback
   cursorCallback
   keyCallback
   = runContextT GLFW.defaultHandleConfig $ do
 
   let
-    nFrames = defaultFrameCount
     void = minBound :: Word32
     clearTex t = do
       writeTexture2D t 0 0 (V2 wh wh) (repeat (V3 void void void))
@@ -128,10 +126,10 @@ everything
     wCfg = (GLFW.defaultWindowConfig "rainynite-linaer")
         { GLFW.configWidth = wh , GLFW.configHeight = wh }
 
-  app <- liftIO $ newIORef (emptyApp nFrames)
+  app <- liftIO $ newIORef emptyApp
 
   frameTextures <-
-    sequence . replicate nFrames $ newTexture2D RGB8 (V2 wh wh) 1
+    sequence . replicate (fromIntegral $ getFrameCount emptyApp) $ newTexture2D RGB8 (V2 wh wh) 1
 
   win <- newWindow (WindowFormatColor RGB8) wCfg
 
