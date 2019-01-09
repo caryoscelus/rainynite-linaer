@@ -23,6 +23,7 @@ open import Data.Bool hiding (_≟_)
 open import Data.Nat
 open import Data.Nat.Properties
 open import Data.Nat.DivMod
+import Data.Integer as ℤ
 open import Data.Sum hiding (map)
 open import Data.Product hiding (map ; zip)
 import Data.Product as P
@@ -55,7 +56,7 @@ record V2 (A : Set) : Set where
 
 {-# COMPILE GHC V2 = data V2 (V2) #-}
 
-Coord = Integer
+Coord = ℤ.ℤ
 Point = V2 Coord
 
 record Stroke : Set where
@@ -88,7 +89,7 @@ emptyApp nFrames = record
   { frameCount = nFrames
   ; nowFrame = 0
   ; frames = replicate nFrames []
-  ; cursor = v2 Ir0 Ir0
+  ; cursor = v2 (ℤ.+ 0) (ℤ.+ 0)
   ; isDrawing = false
   ; zoomLevel = I0
   ; needToClearTexture = true
@@ -156,14 +157,12 @@ postulate
   wh : Int
   toZoom : Int → Int → Double
   drawLine : Double → V2 Coord -> V2 Coord -> List (V2 Float)
-  inductionOnIntAsNat : {A : Set} (z : A) (f : A → A) → Int → A
 
 {-# COMPILE GHC everything = \ _ -> everything #-}
 {-# COMPILE GHC screenToGl = screenToGl #-}
 {-# COMPILE GHC wh = wh #-}
 {-# COMPILE GHC toZoom = toZoom #-}
 {-# COMPILE GHC drawLine = drawLine #-}
-{-# COMPILE GHC inductionOnIntAsNat = \ _ -> inductionOnIntAsNat #-}
 
 _⟫_ : ∀ {ℓ} {A B C : Set ℓ} (F : A → B) (G : B → C) → (A → C)
 _⟫_ = flip _∘′_
@@ -184,9 +183,6 @@ cursorCallback x y app =
     draw = isDrawing app
   in
     when′ draw appendShape app) app
-
-Int⇒ℕ : Int → ℕ
-Int⇒ℕ = inductionOnIntAsNat zero suc
 
 loopFrameLeft : ℕ → ℕ → ℕ
 loopFrameLeft m zero = pred m
