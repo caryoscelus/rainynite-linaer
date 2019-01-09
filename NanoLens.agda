@@ -47,7 +47,7 @@ private
   a >> b = a >>= (λ { tt → b })
   pure = R.returnTC
   
-  strError : String → R.TC ⊤
+  strError : ∀ {ℓ} {A : Set ℓ} → String → R.TC A
   strError msg = R.typeError [ R.strErr msg ]
 
 
@@ -147,9 +147,9 @@ module _ where
       where other → strError "not a record"
     autoLens′ 0 names rec c fields
 
-  macro
-    sett : (field-name : Name) (hole : Term) → TC ⊤
-    sett field-name hole = do
+  module _ where
+    make-sett : (field-name : Name) → TC Name
+    make-sett field-name = do
       pi (arg i (def rec-name rec-args)) (abs _ b) ← getType field-name
         where
           t → typeError $ strErr "Non-function type" ∷ termErr t ∷ []
@@ -173,6 +173,7 @@ module _ where
           fields
         all-pats : List (Arg Pattern)
         all-pats = map (λ { (arg i x) → arg i (var (showName x))}) fields
+
       set-name ← freshName "set"
       declareDef
         (arg (arg-info visible relevant) set-name)
@@ -186,7 +187,41 @@ module _ where
             (con con-name all-pats)
           ∷ [] -- ↓ ↓ ↓
           ) (con con-name all-args) ]
+      pure set-name
+
+    make-a-lens : (field-name : Name) → TC Name
+    make-a-lens field-name = do
+      set-name ← make-sett field-name
+      lens-name ← freshName "lens"
+      declareDef
+        (arg (arg-info visible relevant) lens-name)
+        (def (quote _፦_)
+          ( arg (arg-info visible relevant) unknown
+          ∷ arg (arg-info visible relevant) unknown
+          ∷ []))
+      defineFun lens-name
+        [ clause [] (con (quote mkLens)
+          ( arg (arg-info visible relevant) -- get
+            (def field-name [])
+          ∷ arg (arg-info visible relevant) -- set
+            (def set-name [])
+          ∷ []
+          ))
+        ]
+      pure lens-name
+
+    a-lens : (field-name : Name) (hole : Term) → TC ⊤
+    a-lens field-name hole = do
+      lens-name ← make-a-lens field-name
+      unify hole (def lens-name [])
+
+  macro
+    sett : (field-name : Name) (hole : Term) → TC ⊤
+    sett field-name hole = do
+      set-name ← make-sett field-name
       unify hole (def set-name [])
+
+    ፦[_] = a-lens
 
 module _ where
   private
@@ -198,9 +233,28 @@ module _ where
 
     t : SingleNat
     t = sett wrapped 30 (wrapNat 305)
+    
+    t′ : SingleNat
+    t′ = set ፦[ wrapped ] 30 (wrapNat 305)
 
     t-ok : t ≡ wrapNat 30
     t-ok = refl
+
+    t′-ok : t′ ≡ wrapNat 30
+    t′-ok = refl
+
+    record _×_ (A B : Set) : Set where
+      constructor _,_
+      field
+        fst : A
+        snd : B
+    open _×_
+
+    pts : ℕ × ℕ
+    pts = 3 , 10
+
+    -- pkk : ℕ × ℕ
+    -- pkk = {!sett fst 12 pts !}
 
 private
   record SingleNat : Set where
