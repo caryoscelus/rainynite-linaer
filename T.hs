@@ -1,5 +1,5 @@
 {-- T.hs - some imperative opengl mess
- -- Copyright (C) 2018 caryoscelus
+ -- Copyright (C) 2018-2019 caryoscelus
  --
  -- This program is free software: you can redistribute it and/or modify
  -- it under the terms of the GNU General Public License as published by
@@ -91,6 +91,18 @@ data DrawApp app = DrawApp
   , nowFrame :: app -> Integer
   , dontClearTexture :: app -> app
   , getNeedToClearTexture :: app -> Bool
+  , mouseCallback
+    :: ((app -> app) -> IO ())
+    -> GLFW.MouseButton -> GLFW.MouseButtonState -> GLFW.ModifierKeys
+    -> IO ()
+  , cursorCallback
+    :: ((app -> app) -> IO ())
+    -> Double -> Double
+    -> IO ()
+  , keyCallback
+    :: ((app -> app) -> IO ())
+    -> GLFW.Key -> Int -> GLFW.KeyState -> GLFW.ModifierKeys
+    -> IO ()
   }
 
 proceedRender drawApp app clearTex shader tex = do
@@ -108,12 +120,7 @@ proceedRender drawApp app clearTex shader tex = do
     shader (OnTexture img brushTriangles)
   pure app'
 
-everything
-  drawApp
-  mouseCallback
-  cursorCallback
-  keyCallback
-  = runContextT GLFW.defaultHandleConfig $ do
+everything drawApp = runContextT GLFW.defaultHandleConfig $ do
   let
     void = minBound :: Word32
     clearTex t = do
@@ -135,11 +142,11 @@ everything
   texShader <- compileShader (singleTextureOnWindowShader win wh wh)
 
   GLFW.setMouseButtonCallback win . pure $
-    mouseCallback (modifyIORef app)
+    mouseCallback drawApp (modifyIORef app)
   GLFW.setCursorPosCallback win . pure $
-    cursorCallback (modifyIORef app)
+    cursorCallback drawApp (modifyIORef app)
   GLFW.setKeyCallback win . pure $
-    keyCallback (modifyIORef app)
+    keyCallback drawApp (modifyIORef app)
   
   wholeScreenBuff :: Buffer os (B2 Float) <- newBuffer 4
   writeBuffer wholeScreenBuff 0

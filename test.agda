@@ -109,6 +109,10 @@ record DrawApp (App : Set) : Set where
     dontClearTexture : App → App
     getNeedToClearTexture : App → Bool
 
+    mouseCallback : GLFW.MouseCallback′ {Prim.IO ⊤} App
+    cursorCallback : GLFW.CursorCallback′ {Prim.IO ⊤} App
+    keyCallback : GLFW.KeyCallback′ {Prim.IO ⊤} App
+
 {-# COMPILE GHC DrawApp = data DrawApp (DrawApp) #-}
 
 ToTriangles : Set
@@ -146,13 +150,7 @@ postulate
 {-# COMPILE GHC avgC = avg #-}
 
 postulate
-  everything :
-    ∀ {App : Set} →
-    DrawApp App →
-    GLFW.MouseCallback′ {Prim.IO ⊤} App →
-    GLFW.CursorCallback′ {Prim.IO ⊤} App →
-    GLFW.KeyCallback′ {Prim.IO ⊤} App →
-    Prim.IO ⊤
+  everything : ∀ {App} → DrawApp App → Prim.IO ⊤
   screenToGl : (w h : Int) (x y : Double) → V2 Coord
   wh : Int
   toZoom : Int → Int → Double
@@ -324,14 +322,10 @@ drawApp = record
   ; nowFrame = nowFrame
   ; dontClearTexture = set ፦[ needToClearTexture ] false
   ; getNeedToClearTexture = needToClearTexture
+  ; mouseCallback = GLFW.mouseCallbackWrap mouseCallback
+  ; cursorCallback = GLFW.cursorCallbackWrap cursorCallback
+  ; keyCallback = GLFW.keyCallbackWrap keyCallback
   }
 
-main = run $ do
-  lift $ everything
-    drawApp
-    (mouseCallbackWrap mouseCallback)
-    (cursorCallbackWrap cursorCallback)
-    (keyCallbackWrap keyCallback)
-  where
-    open IO
-    open GLFW
+main = run ∘ lift ∘ everything $ drawApp
+  where open IO
