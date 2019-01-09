@@ -117,25 +117,23 @@ everything
   cursorCallback
   keyCallback
   = runContextT GLFW.defaultHandleConfig $ do
-  let nFrames = defaultFrameCount
+
+  let
+    nFrames = defaultFrameCount
+    void = minBound :: Word32
+    clearTex t = do
+      writeTexture2D t 0 0 (V2 wh wh) (repeat (V3 void void void))
+    bgColor  = V3 0.0 0.0 0.0
+    allColors = V3 True True True
+    wCfg = (GLFW.defaultWindowConfig "rainynite-linaer")
+        { GLFW.configWidth = wh , GLFW.configHeight = wh }
 
   app <- liftIO $ newIORef (emptyApp nFrames)
 
   frameTextures <-
     sequence . replicate nFrames $ newTexture2D RGB8 (V2 wh wh) 1
 
-  let
-    void = minBound :: Word32
-    clearTex t = do
-      writeTexture2D t 0 0 (V2 wh wh) (repeat (V3 void void void))
-  
-  let wCfg = (GLFW.defaultWindowConfig "rainynite-linaer")
-        { GLFW.configWidth = wh , GLFW.configHeight = wh }
   win <- newWindow (WindowFormatColor RGB8) wCfg
-
-  let
-    bgColor  = V3 0.0 0.0 0.0
-    allColors = V3 True True True
 
   brushTexShader <- compileShader (singleColorOnTextureShader wh wh)
   texShader <- compileShader (singleTextureOnWindowShader win wh wh)
