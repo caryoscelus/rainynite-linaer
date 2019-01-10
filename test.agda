@@ -39,6 +39,7 @@ import IO
 
 open import Function
 
+open import Util
 open import Hask
 import GLFW
 open GLFW.Types
@@ -107,13 +108,6 @@ appendShape app =
        ; [] → [] -- TODO should never happen, eliminate
        }))
       app
-
-_⟫_ : ∀ {ℓ} {A B C : Set ℓ} (F : A → B) (G : B → C) → (A → C)
-_⟫_ = flip _∘′_
-
-when′ : ∀ {ℓ} {A : Set ℓ} (cond : Bool) → (A → A) → (A → A)
-when′ false _ = id
-when′ true f = f
 
 mouseCallback : GLFW.MouseCallback AllApp
 mouseCallback button MouseButtonState'Pressed mods =

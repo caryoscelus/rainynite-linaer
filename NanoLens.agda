@@ -41,6 +41,12 @@ open _፦_ public
 modify : ∀ {ℓ} {A B : Set ℓ} (lens : A ፦ B) (f : B → B) → A → A
 modify lens f x = set lens (f (get lens x)) x
 
+infixl 10 _፦⟫_
+
+_፦⟫_ : ∀ {ℓ} {A B C : Set ℓ} → A ፦ B → B ፦ C → A ፦ C
+get (f ፦⟫ g) = get g ∘ get f
+set (f ፦⟫ g) z x = modify f (set g z) x
+
 private
   _>>=_ = R.bindTC
   _>>_ : ∀ {ℓ} {A : Set ℓ} → R.TC ⊤ → R.TC A → R.TC A
