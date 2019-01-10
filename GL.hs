@@ -54,7 +54,7 @@ colorTrianglesOnTextureShader w h = do
   draw (const NoBlending) rasterized $ \color ->
     drawColor
       (\s -> (targetTexture s, (V3 True True True), False))
-      color
+      (color ** 2.2) -- gamma correction, bah
 
 singleTextureOnWindowShader
   :: Window os RGBFloat ds
@@ -64,7 +64,7 @@ singleTextureOnWindowShader
     ()
 singleTextureOnWindowShader win w h = do
     let
-      filter = SamplerFilter Linear Linear Nearest Nothing
+      filter = SamplerNearest
       edge = (pure ClampToEdge, 0)
     primStream <- toPrimitiveStream screenArea
     fragments <- rasterize
