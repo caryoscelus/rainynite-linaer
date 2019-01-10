@@ -40,6 +40,37 @@ data RenderTexture os c p a = RenderTexture
   , screenTex :: Texture2D os (Format c)
   }
 
+sameV3 :: a -> V3 a
+sameV3 x = V3 x x x
+
+-- adopted from http://lolengine.net/blog/2013/07/27/rgb-to-hsv-in-glsl
+hsvToRgb (V3 hue sat val) =
+  let
+    k = V3 1.0 (2.0 / 3.0) (1.0 / 3.0)
+    (V3 r g b) =
+      abs (fract' (sameV3 hue + k) * 6.0 - sameV3 3.0) - sameV3 1.0
+  in
+    (sameV3 val) *
+      mix
+        (sameV3 1.0)
+        (V3 (saturate r) (saturate g) (saturate b))
+        (sameV3 sat)
+
+hsvTrianglesOnTextureShader
+  :: Int -> Int
+  -> Shader os
+    (OnTexture (PrimitiveArray Triangles (B4 Float, B3 Float)) RGBFloat)
+    ()
+hsvTrianglesOnTextureShader w h = do
+  stream <- toPrimitiveStream putOnTexture
+  rasterized <- rasterize
+    (const (FrontAndBack, ViewPort (V2 0 0) (V2 w h), DepthRange 0 1))
+    stream
+  draw (const NoBlending) rasterized $ \hsv ->
+    drawColor
+      (\s -> (targetTexture s, (V3 True True True), False))
+      (hsvToRgb hsv ** 2.2)
+
 
 colorTrianglesOnTextureShader
   :: Int -> Int
