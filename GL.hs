@@ -1,5 +1,5 @@
 {-- GL.hs - some semi-imperative opengl mess
- -- Copyright (C) 2018 caryoscelus
+ -- Copyright (C) 2018-2019 caryoscelus
  --
  -- This program is free software: you can redistribute it and/or modify
  -- it under the terms of the GNU General Public License as published by
@@ -41,12 +41,12 @@ data RenderTexture os c p a = RenderTexture
   }
 
 
-singleColorOnTextureShader
+colorTrianglesOnTextureShader
   :: Int -> Int
   -> Shader os
     (OnTexture (PrimitiveArray Triangles (B4 Float, B3 Float)) RGBFloat)
     ()
-singleColorOnTextureShader w h = do
+colorTrianglesOnTextureShader w h = do
   stream <- toPrimitiveStream putOnTexture
   rasterized <- rasterize
     (const (FrontAndBack, ViewPort (V2 0 0) (V2 w h), DepthRange 0 1))
