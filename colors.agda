@@ -66,6 +66,10 @@ record Fin256 : Set where
 fin0 = fin 0 (≤⇒≤′ (s≤s z≤n))
 finMax = fin 255 ≤′-refl
 
+256-neg : Fin256 → Fin256
+256-neg (fin n _) =
+  fin (255 ∸ n) (≤⇒≤′ (s≤s (n∸m≤n n 255)))
+
 hsvRed : HSV Fin256
 hue hsvRed = fin0
 saturation hsvRed = finMax
@@ -89,16 +93,30 @@ emptyApp = record
 hueToRgb : Fin256 → RGB Fin256
 hueToRgb x = rgb x finMax finMax -- rgb finMax fin0 fin0 -- TODO
 
-[_/_] = ratioToFloat
+[ℕ_/_] = ℕratioToFloat
+[ℤ_/_] = ℤratioToFloat
 
 rgb256⇒float : RGB Fin256 → V3 Float
 rgb256⇒float c = v3
-  [ Fin256.n (red c) / 255 ]
-  [ Fin256.n (green c) / 255 ]
-  [ Fin256.n (blue c) / 255 ]
+  [ℕ Fin256.n (red c) / 255 ]
+  [ℕ Fin256.n (green c) / 255 ]
+  [ℕ Fin256.n (blue c) / 255 ]
 
-render : ColorsApp → Triangles
-render app =
+renderColor : ColorsApp → Triangles
+renderColor app =
+  let
+    col = hsvColor app
+    col′ = rgb (hue col) (saturation col) (value col)
+    ↖ = v2 [ℤ ℤ.- (ℤ.+ 1) / ℤ.+ 1 ] [ℕ 1 / 1 ]
+    ↗ = v2 [ℕ 0 / 1 ] [ℕ 1 / 1 ]
+    ↙ = v2 [ℤ ℤ.- (ℤ.+ 1) / ℤ.+ 1 ] [ℕ 0 / 1 ]
+    ↘ = v2 [ℕ 0 / 1 ] [ℕ 0 / 1 ]
+  in
+    L.map (λ xy → rgbPoint xy (rgb256⇒float col′))
+      (↖ ∷ ↗ ∷ ↙ ∷ ↗ ∷ ↙ ∷ ↘ ∷ [])
+
+renderSVRect : ColorsApp → Triangles
+renderSVRect app =
   let
     col = hueToRgb ∘ hue ∘ hsvColor $ app
     black : RGB Fin256
@@ -106,13 +124,16 @@ render app =
     black′ = rgb fin0 finMax fin0
     white : RGB Fin256
     white = rgb fin0 fin0 finMax
-    ↖ = (v2 [ 0 / 1 ] [ 0 / 1 ] , black′)
-    ↗ = (v2 [ 1 / 1 ] [ 0 / 1 ] , black)
-    ↙ = (v2 [ 0 / 1 ] [ 1 / 1 ] , col)
-    ↘ = (v2 [ 1 / 1 ] [ 1 / 1 ] , white)
+    ↙ = (v2 [ℕ 0 / 1 ] [ℕ 0 / 1 ] , black′)
+    ↘ = (v2 [ℕ 1 / 1 ] [ℕ 0 / 1 ] , black)
+    ↖ = (v2 [ℕ 0 / 1 ] [ℕ 1 / 1 ] , col)
+    ↗ = (v2 [ℕ 1 / 1 ] [ℕ 1 / 1 ] , white)
   in
     L.map (λ { ( xy , color ) → rgbPoint xy (rgb256⇒float color)})
       (↖ ∷ ↗ ∷ ↙ ∷ ↗ ∷ ↙ ∷ ↘ ∷ [])
+
+render : ColorsApp → Triangles
+render app = renderSVRect app ++ renderColor app
 
 ℕ⇒256 : ℕ → Fin256
 ℕ⇒256 x with x <? 256
@@ -125,7 +146,7 @@ Coord⇒256 = ℕ⇒256 ∘ λ { (ℤ.+_ n) → n ; (ℤ.-[1+_] n) → 0 }
 mouseCallback : GLFW.MouseCallback ColorsApp
 mouseCallback button MouseButtonState'Pressed _ app =
   ( set ፦[ updated ] true
-  ⟫ set (፦[ hsvColor ] ፦⟫ ፦[ saturation ]) (Coord⇒256 ∘ V2.x ∘ cursor $ app)
+  ⟫ set (፦[ hsvColor ] ፦⟫ ፦[ saturation ]) (256-neg ∘ Coord⇒256 ∘ V2.x ∘ cursor $ app)
   ⟫ set (፦[ hsvColor ] ፦⟫ ፦[ value ]) (Coord⇒256 ∘ V2.y ∘ cursor $ app)
   ) app
 mouseCallback button MouseButtonState'Released _ = id

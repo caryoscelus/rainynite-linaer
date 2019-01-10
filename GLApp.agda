@@ -87,10 +87,12 @@ record DrawApp (App : Set) : Set where
 
 postulate
   avgC : Coord → Coord → Coord
-  ratioToFloat : ℕ → ℕ → Float
+  ℕratioToFloat : ℕ → ℕ → Float
+  ℤratioToFloat : ℤ.ℤ → ℤ.ℤ → Float
 
 {-# COMPILE GHC avgC = avg #-}
-{-# COMPILE GHC ratioToFloat = ratioToFloat #-}
+{-# COMPILE GHC ℕratioToFloat = ratioToFloat #-}
+{-# COMPILE GHC ℤratioToFloat = ratioToFloat #-}
 
 postulate
   everything : ∀ {App} → DrawApp App → Prim.IO ⊤
