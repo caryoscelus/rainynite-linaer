@@ -35,6 +35,7 @@ open GLFW.Types
   import T
   import Strokes
   import Linear.V2
+  import Linear.V3
   #-}
 
 record V2 (A : Set) : Set where
@@ -42,13 +43,30 @@ record V2 (A : Set) : Set where
   field
     x y : A
 
+record V3 (A : Set) : Set where
+  constructor v3
+  field
+    x y z : A
+
 {-# COMPILE GHC V2 = data V2 (V2) #-}
+{-# COMPILE GHC V3 = data V3 (V3) #-}
 
 Coord = ℤ.ℤ
 Point = V2 Coord
 
+GLPoint = V2 Float
+GLRGB = V3 Float
+
+record GLRGBPoint : Set where
+  constructor rgbPoint
+  field
+    point : GLPoint
+    rgb : GLRGB
+
+{-# COMPILE GHC GLRGBPoint = data GLRGBPoint (GLRGBPoint) #-}
+
 Triangles : Set
-Triangles = List (V2 Float)
+Triangles = List GLRGBPoint
 
 record DrawApp (App : Set) : Set where
   field
@@ -69,8 +87,10 @@ record DrawApp (App : Set) : Set where
 
 postulate
   avgC : Coord → Coord → Coord
+  ratioToFloat : ℕ → ℕ → Float
 
 {-# COMPILE GHC avgC = avg #-}
+{-# COMPILE GHC ratioToFloat = ratioToFloat #-}
 
 postulate
   everything : ∀ {App} → DrawApp App → Prim.IO ⊤

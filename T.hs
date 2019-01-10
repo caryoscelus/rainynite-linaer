@@ -77,16 +77,22 @@ screenToGl w h x y = V2
   (- fromIntegral w `div` 2 + floor x)
   (fromIntegral h `div` 2 - floor y)
 
-penColor = V3 0.5 0.5 0.5
+ratioToFloat :: Integer -> Integer -> Float
+ratioToFloat x y
+  | y == 0    = 0 -- duh
+  | otherwise = fromIntegral x / fromIntegral y
 
 v2to4 :: Num i => V2 i -> V4 i
 v2to4 (V2 x y) = V4 x y 0 1
 
-type DrawTriangles = [ (V2 Float) ]
+data GLRGBPoint = GLRGBPoint
+  { glpoint :: V2 Float
+  , glrgb :: V3 Float
+  }
 
 data DrawApp app = DrawApp
   { emptyApp :: app
-  , renderApp :: app -> DrawTriangles
+  , renderApp :: app -> [ GLRGBPoint ]
   , frameCount :: app -> Integer
   , nowFrame :: app -> Integer
   , dontClearTexture :: app -> app
@@ -105,14 +111,17 @@ data DrawApp app = DrawApp
     -> IO ()
   }
 
+glPointToV4 :: GLRGBPoint -> (V4 Float , V3 Float)
+glPointToV4 p = (v2to4 (glpoint p) , glrgb p)
+
 proceedRender drawApp app clearTex shader tex = do
   when (getNeedToClearTexture drawApp app) $ clearTex tex
   let
     app' = dontClearTexture drawApp app
     lines = renderApp drawApp app
   lineBuff :: Buffer os (B4 Float, B3 Float) <- newBuffer (length lines)
-  unless (lines == []) $
-    writeBuffer lineBuff 0 (fmap (\xy -> (v2to4 xy , penColor)) lines)
+  unless (null lines) $
+    writeBuffer lineBuff 0 (fmap glPointToV4 lines)
   render $ do
     vertexArray <- newVertexArray lineBuff
     let brushTriangles = toPrimitiveArray TriangleList vertexArray

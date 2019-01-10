@@ -30,6 +30,7 @@ open import Data.Sum hiding (map)
 open import Data.Product hiding (map ; zip)
 import Data.Product as P
 open import Data.List
+import Data.List as L
 open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Relation.Nullary.Decidable hiding (map)
@@ -237,7 +238,13 @@ interpolate : Int → Picture → Picture → List (V2 Float)
 interpolate zoom before after =
   pic⇒triangles zoom (map (uncurry iStrokes) (zip before after))
 
-toTriangles′ : Int → ℕ → List Picture → Triangles
+half : Float
+half = ratioToFloat 1 2
+
+penColor : V3 Float
+penColor = v3 half half half
+
+toTriangles′ : Int → ℕ → List Picture → List (V2 Float)
 toTriangles′ zoom n frames
   with drop n frames
 ...  | [] = []
@@ -247,7 +254,7 @@ toTriangles′ zoom n frames
 ...  | _ ∷ _ = pic⇒triangles zoom frame
 
 toTriangles : AllApp → Triangles
-toTriangles x = toTriangles′
+toTriangles x = L.map (λ p → rgbPoint p penColor) $ toTriangles′
   (zoomLevel x) -- -256
   (nowFrame x)
   (frames x)
