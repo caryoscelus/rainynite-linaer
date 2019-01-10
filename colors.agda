@@ -87,15 +87,15 @@ emptyApp = record
   }
 
 hueToRgb : Fin256 → RGB Fin256
-hueToRgb x = rgb finMax fin0 fin0 -- TODO
+hueToRgb x = rgb x finMax finMax -- rgb finMax fin0 fin0 -- TODO
 
 [_/_] = ratioToFloat
 
 rgb256⇒float : RGB Fin256 → V3 Float
 rgb256⇒float c = v3
-  [ Fin256.n (red c) / 256 ]
-  [ Fin256.n (green c) / 256 ]
-  [ Fin256.n (blue c) / 256 ]
+  [ Fin256.n (red c) / 255 ]
+  [ Fin256.n (green c) / 255 ]
+  [ Fin256.n (blue c) / 255 ]
 
 render : ColorsApp → Triangles
 render app =
@@ -103,9 +103,10 @@ render app =
     col = hueToRgb ∘ hue ∘ hsvColor $ app
     black : RGB Fin256
     black = rgb fin0 fin0 fin0
+    black′ = rgb fin0 finMax fin0
     white : RGB Fin256
-    white = rgb finMax finMax finMax
-    ↖ = (v2 [ 0 / 1 ] [ 0 / 1 ] , black)
+    white = rgb fin0 fin0 finMax
+    ↖ = (v2 [ 0 / 1 ] [ 0 / 1 ] , black′)
     ↗ = (v2 [ 1 / 1 ] [ 0 / 1 ] , black)
     ↙ = (v2 [ 0 / 1 ] [ 1 / 1 ] , col)
     ↘ = (v2 [ 1 / 1 ] [ 1 / 1 ] , white)

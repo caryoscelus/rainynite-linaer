@@ -147,7 +147,7 @@ everything drawApp = runContextT GLFW.defaultHandleConfig $ do
 
   win <- newWindow (WindowFormatColor RGB8) wCfg
 
-  brushTexShader <- compileShader (colorTrianglesOnTextureShader wh wh)
+  brushTexShader <- compileShader (hsvTrianglesOnTextureShader wh wh)
   texShader <- compileShader (singleTextureOnWindowShader win wh wh)
 
   GLFW.setMouseButtonCallback win . pure $
