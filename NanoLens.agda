@@ -275,6 +275,41 @@ module _ where
 
     ፦[_] = a-lens
 
+
+module _ where
+  open import Data.Fin
+  open import Data.Vec
+  import Data.Vec as V
+
+  ፦vec[_] : ∀ {ℓ} {A : Set ℓ} {size : ℕ} → Fin size → Vec A size ፦ A
+  get ፦vec[ n ] xs = V.lookup n xs
+  set ፦vec[ n ] x xs = xs [ n ]≔ x
+
+  private
+    just-a-vec : Vec ℕ 3
+    just-a-vec = 3 V.∷ 5 V.∷ 9 V.∷ []
+
+    just-another : Vec ℕ 3
+    just-another = set ፦vec[ zero ] 13 just-a-vec
+
+    just-ok : just-another ≡ 13 V.∷ 5 V.∷ 9 V.∷ []
+    just-ok = refl
+
+    record InnerVec (A : Set) : Set where
+      field
+        icount : ℕ
+        ivec : Vec A icount
+
+    open InnerVec
+
+    something : InnerVec ℕ
+    icount something = 2
+    ivec something = 0 ∷ 1 ∷ []
+
+    -- TODO: dependent
+    -- something′ : InnerVec ℕ
+    -- something′ = set (፦[ ivec ] ፦⟫ ፦vec[ 0 ]) 3 something
+
 module _ where
   private
     record SingleNat : Set where
