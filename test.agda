@@ -239,7 +239,7 @@ interpolate zoom before after =
   pic⇒triangles zoom (map (uncurry iStrokes) (zip before after))
 
 half : Float
-half = ratioToFloat 1 2
+half = ℕratioToFloat 1 2
 
 penColor : V3 Float
 penColor = v3 half half half
