@@ -90,11 +90,19 @@ data GLRGBPoint = GLRGBPoint
   , glrgb :: V3 Float
   }
 
+-- type Triangles = [ GLRGBPoint ]
+
+data RenderResult app = RenderResult
+  { newState :: app
+  , result :: [ GLRGBPoint ]
+  }
+
 data DrawApp app = DrawApp
   { emptyApp :: app
-  , renderApp :: app -> [ GLRGBPoint ]
+  , renderApp :: app -> RenderResult app
   , frameCount :: app -> Integer
   , nowFrame :: app -> Integer
+  , isDirty :: Integer -> app -> Bool
   , dontClearTexture :: app -> app
   , getNeedToClearTexture :: app -> Bool
   , mouseCallback
@@ -118,7 +126,7 @@ proceedRender drawApp app clearTex shader tex = do
   when (getNeedToClearTexture drawApp app) $ clearTex tex
   let
     app' = dontClearTexture drawApp app
-    lines = renderApp drawApp app
+    RenderResult newState lines = renderApp drawApp app
   lineBuff :: Buffer os (B4 Float, B3 Float) <- newBuffer (length lines)
   unless (null lines) $
     writeBuffer lineBuff 0 (fmap glPointToV4 lines)

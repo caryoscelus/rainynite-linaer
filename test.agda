@@ -253,8 +253,9 @@ toTriangles′ zoom n frames
 ...  | [] = uncurry (interpolate zoom) (getAround frame n frames)
 ...  | _ ∷ _ = pic⇒triangles zoom frame
 
-toTriangles : AllApp → Triangles
-toTriangles x = L.map (λ p → rgbPoint p penColor) $ toTriangles′
+toTriangles : AllApp →  RenderResult AllApp
+RenderResult.newState (toTriangles x) = x -- TODO: dirty
+RenderResult.result (toTriangles x) = L.map (λ p → rgbPoint p penColor) $ toTriangles′
   (zoomLevel x) -- -256
   (nowFrame x)
   (frames x)
@@ -272,6 +273,7 @@ drawApp = record
   ; mouseCallback = GLFW.mouseCallbackWrap mouseCallback
   ; cursorCallback = GLFW.cursorCallbackWrap cursorCallback
   ; keyCallback = GLFW.keyCallbackWrap keyCallback
+  ; isDirty = λ _ _ → true
   }
 
 main = run ∘ lift ∘ everything $ drawApp

@@ -68,14 +68,22 @@ record GLRGBPoint : Set where
 Triangles : Set
 Triangles = List GLRGBPoint
 
+record RenderResult (App : Set) : Set where
+  field
+    newState : App
+    result : Triangles
+
+{-# COMPILE GHC RenderResult = data RenderResult (RenderResult) #-}
+
 record DrawApp (App : Set) : Set where
   field
     empty : App
-    render : App → Triangles
+    render : App → RenderResult App
     
     frameCount : App → ℕ
     nowFrame : App → ℕ
-    
+
+    isDirty : ℕ → App → Bool
     dontClearTexture : App → App
     getNeedToClearTexture : App → Bool
 
