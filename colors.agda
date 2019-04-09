@@ -157,7 +157,8 @@ cursorCallback x y = set ፦[ cursor ] (screenToGl wh wh x y)
 drawColorsApp : DrawApp ColorsApp
 drawColorsApp = record
   { empty = emptyApp
-  ; render = render
+  ; render = λ x → record { newState = x ; result = render x }
+  ; isDirty = λ _ _ → true
   ; frameCount = λ _ → 1
   ; nowFrame = λ _ → 0
   ; dontClearTexture = set ፦[ updated ] false
