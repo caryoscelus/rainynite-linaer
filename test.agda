@@ -15,7 +15,7 @@
  -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
  --}
 
-{-# OPTIONS --safe --without-K #-}
+-- {-# OPTIONS --without-K #-}
 
 module test where
 
@@ -35,7 +35,6 @@ open import Relation.Binary.PropositionalEquality
 open import Relation.Nullary
 open import Relation.Nullary.Decidable hiding (map)
 
-import IO.Primitive as Prim
 import IO
 
 open import Function
@@ -186,7 +185,7 @@ module _ where
   ...  | .zero     | V.[] = z , z
   ...  | .(suc _)  | xs′@(_ V.∷ _) =
     let
-      kk x = V.lookup (x mod (vec-length xs′)) xs′
+      kk x = V.lookup xs′ (x mod (vec-length xs′))
     in
       P.map kk kk (pred n , suc n)
 
@@ -211,7 +210,7 @@ module _ where
         (s≤s (m⊓n≤n p′ (pred m)))
         (≤-reflexive (m≢0⇒suc[pred[m]]≡m m≠0))
     in
-      V.lookup (Fin.fromℕ≤ p-ok) xs
+      V.lookup xs (Fin.fromℕ≤ p-ok)
 
   doIt : List (V2 Coord) → List (V2 Coord) → List (V2 Coord)
   doIt a b

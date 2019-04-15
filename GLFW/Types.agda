@@ -1,4 +1,4 @@
-{-# OPTIONS --without-K --safe #-}
+{-# OPTIONS --without-K #-}
 
 {- NOTE: This file is semi-automatically generated from GLFW haskell code
    editing it by hand is boring and error-prone, we should really have a

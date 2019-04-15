@@ -15,8 +15,6 @@
  -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
  --}
 
-{-# OPTIONS --safe --without-K #-}
-
 module colors where
 
 open import Data.Empty

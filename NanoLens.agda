@@ -282,7 +282,7 @@ module _ where
   import Data.Vec as V
 
   ፦vec[_] : ∀ {ℓ} {A : Set ℓ} {size : ℕ} → Fin size → Vec A size ፦ A
-  get ፦vec[ n ] xs = V.lookup n xs
+  get ፦vec[ n ] xs = V.lookup xs n
   set ፦vec[ n ] x xs = xs [ n ]≔ x
 
   private

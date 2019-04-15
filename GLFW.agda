@@ -15,6 +15,8 @@
  -- along with this program.  If not, see <http://www.gnu.org/licenses/>.
  --}
 
+{-# OPTIONS --without-K #-}
+
 module GLFW where
 
 open import Data.Bool
